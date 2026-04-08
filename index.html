@@ -4,162 +4,171 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>AR Digital Exhibition</title>
+    
+    <!-- Import Google's <model-viewer> library -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+    
     <style>
-        body { margin: 0; overflow: hidden; background-color: #111; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        #ar-button { padding: 15px 30px; font-size: 18px; font-weight: bold; color: white; background-color: #007bff; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); display: none; }
-        #ar-button:active { background-color: #0056b3; }
-        
-        /* Added a background to the text so you can read it over the camera feed */
-        #status-text { color: white; position: absolute; top: 20px; text-align: center; width: 80%; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 8px; z-index: 100;}
-    </style>
-
-    <!-- THE FIX: The Import Map tells the browser exactly where to find the 3D libraries -->
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-            }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #111;
+            font-family: sans-serif;
+            overflow: hidden;
         }
-    </script>
+
+        model-viewer {
+            width: 100%;
+            height: 100%;
+            /* Hide the default loading poster to keep it clean */
+            --poster-color: transparent; 
+        }
+
+        /* 1. Custom 'Open in AR' Button */
+        #custom-ar-button {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            background-color: #007bff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+
+        #custom-ar-button:active {
+            background-color: #0056b3;
+        }
+
+        /* 2. The Ghost UI Overlay (Hidden until AR opens) */
+        #ghost-ui {
+            display: none; /* Toggled on by JavaScript when AR starts */
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* Crucial: lets the user's tap pass THROUGH the ghost image to place the model */
+            pointer-events: none; 
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 5;
+        }
+
+        /* 3. The 25% Transparent Anchor Image */
+        #ghost-image {
+            width: 60vw;
+            max-width: 300px;
+            opacity: 0.25;
+            /* Added a subtle dashed border to help them aim */
+            border: 2px dashed rgba(255, 255, 255, 0.6); 
+            border-radius: 4px;
+        }
+
+        /* 4. Instructions Text */
+        #instructions {
+            position: absolute;
+            top: 10%;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 16px;
+            width: 80%;
+            max-width: 350px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+    </style>
 </head>
 <body>
 
-    <div id="status-text">Checking AR support...</div>
-    <button id="ar-button">Open in AR</button>
+    <!-- 
+      ar-placement="wall" : Tells the AR engine to map vertical walls, not the floor.
+      ar-scale="fixed" : Locks the model at exactly 1:1 scale (the size you modeled it).
+      disable-zoom / disable-pan : Disables user touch gestures so they can't shrink/move the artwork.
+    -->
+    <model-viewer 
+        id="exhibition-model"
+        src="models/project1.glb"
+        ar 
+        ar-modes="webxr scene-viewer quick-look" 
+        ar-placement="wall" 
+        ar-scale="fixed"
+        disable-zoom
+        disable-pan
+        shadow-intensity="1"
+        camera-controls>
+        
+        <!-- Slotting our custom button overrides the default <model-viewer> button -->
+        <button slot="ar-button" id="custom-ar-button">
+            Open in AR
+        </button>
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        <!-- Our custom DOM Overlay that renders on top of the camera feed in WebXR -->
+        <div id="ghost-ui">
+            <div id="instructions">Align this image over the poster on the wall, then tap the screen.</div>
+            <img id="ghost-image" src="anchor.jpg" alt="Ghost Anchor">
+        </div>
 
-        let scene, camera, renderer, model;
-        const arButton = document.getElementById('ar-button');
-        const statusText = document.getElementById('status-text');
+    </model-viewer>
 
-        // 1. Safely check for AR Support
-        if ('xr' in navigator) {
-            navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
-                if (supported) {
-                    arButton.style.display = 'block';
-                    statusText.innerText = "Ready! Stand in front of the printed anchor.";
-                } else {
-                    statusText.innerText = "AR is not supported on this device.";
-                }
-            }).catch(err => {
-                statusText.innerText = "Error checking AR: " + err.message;
-            });
-        } else {
-            // WebXR only works on HTTPS (which GitHub Pages uses). If tested locally, it fails here.
-            statusText.innerText = "WebXR not found. Make sure you are using GitHub Pages (HTTPS).";
-        }
+    <script>
+        const modelViewer = document.getElementById('exhibition-model');
+        const ghostUI = document.getElementById('ghost-ui');
+        const ghostImage = document.getElementById('ghost-image');
+        const instructions = document.getElementById('instructions');
+        
+        let isPlaced = false;
 
-        // 2. Setup the 3D Scene
-        function initScene() {
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
-
-            const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-            light.position.set(0.5, 1, 0.25);
-            scene.add(light);
-            
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(0, 2, 1);
-            scene.add(directionalLight);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.xr.enabled = true;
-        }
-
-        // 3. Load the 3D Model
-        function loadModel() {
-            const loader = new GLTFLoader();
-            loader.load('models/project1.glb', (gltf) => {
-                model = gltf.scene;
-                model.visible = false; 
-                scene.add(model);
-            }, undefined, (error) => {
-                console.error("Model load error:", error);
-                statusText.innerText = "Failed to load project1.glb. Check the 'models' folder.";
-            });
-        }
-
-        // 4. Start AR and Request Image Tracking
-        async function startAR() {
-            try {
-                arButton.style.display = 'none';
-                statusText.innerText = "Loading anchor.jpg...";
-
-                // Safely load the anchor image
-                const img = new Image();
-                img.src = 'anchor.jpg';
-                
-                // Wait for the image to physically download before converting it
-                await new Promise((resolve, reject) => {
-                    img.onload = resolve;
-                    img.onerror = () => reject(new Error("Could not find anchor.jpg in the main folder."));
-                });
-                
-                const imageBitmap = await createImageBitmap(img);
-
-                statusText.innerText = "Starting Camera...";
-
-                // Request the AR Session. (This fails if chrome://flags/#webxr-incubations is off)
-                const session = await navigator.xr.requestSession('immersive-ar', {
-                    requiredFeatures: ['image-tracking'],
-                    trackedImages:[{
-                        image: imageBitmap,
-                        widthInMeters: 0.38 // 38cm
-                    }]
-                });
-
-                renderer.xr.setReferenceSpaceType('local');
-                await renderer.xr.setSession(session);
-
-                session.requestAnimationFrame(onXRFrame);
-                statusText.innerText = "Scanning for the 38cm image...";
-
-            } catch (error) {
-                console.error(error);
-                // If it fails, print the exact error to the phone screen
-                statusText.innerText = "AR Crash: " + error.message;
-                arButton.style.display = 'block'; 
+        // 1. Listen for when the AR camera actually opens
+        modelViewer.addEventListener('ar-status', (event) => {
+            if (event.detail.status === 'session-started') {
+                // AR has started! Turn on the ghost image overlay.
+                ghostUI.style.display = 'flex';
+                ghostImage.style.display = 'block'; // Reset in case they re-enter AR
+                instructions.innerText = "Align this image over the poster on the wall, then tap the screen.";
+                instructions.style.opacity = "1";
+                isPlaced = false;
+            } else if (event.detail.status === 'not-presenting') {
+                // User closed AR. Hide the overlay.
+                ghostUI.style.display = 'none';
             }
-        }
+        });
 
-        // 5. The Tracking Loop
-        function onXRFrame(time, frame) {
-            const session = frame.session;
-            session.requestAnimationFrame(onXRFrame);
-
-            const results = frame.getImageTrackingResults();
-
-            for (const result of results) {
-                if (result.trackingState === 'tracked') {
-                    const referenceSpace = renderer.xr.getReferenceSpace();
-                    const pose = frame.getPose(result.imageSpace, referenceSpace);
-
-                    if (pose && model) {
-                        model.position.copy(pose.transform.position);
-                        model.quaternion.copy(pose.transform.orientation);
-                        
-                        model.visible = true;
-                        statusText.innerText = "Exhibition Placed! You can look around."; 
-                    }
-                } 
-                else if (result.trackingState === 'emulated') {
-                    // When tracking state is emulated, SLAM takes over.
-                    // We intentionally do nothing here to let the model stay locked in physical space.
-                }
+        // 2. Listen for the user's tap on the screen
+        modelViewer.addEventListener('pointerdown', (event) => {
+            // Check if we are currently inside the active AR view
+            if (modelViewer.hasAttribute('ar-status') && 
+                modelViewer.getAttribute('ar-status') !== 'not-presenting' && 
+                !isPlaced) {
+                
+                // The model has now been placed!
+                isPlaced = true;
+                
+                // Instantly hide the ghost image so they can see the artwork
+                ghostImage.style.display = 'none';
+                
+                // Update the text to confirm placement
+                instructions.innerText = "Artwork Placed! You can now walk around.";
+                
+                // Automatically fade out the text box after 3 seconds for a clean museum view
+                setTimeout(() => {
+                    instructions.style.transition = "opacity 1s ease-in-out";
+                    instructions.style.opacity = "0";
+                }, 3000);
             }
-
-            renderer.render(scene, camera);
-        }
-
-        initScene();
-        loadModel();
-        arButton.addEventListener('click', startAR);
-
+        });
     </script>
+
 </body>
 </html>
