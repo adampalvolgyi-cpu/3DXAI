@@ -15,7 +15,7 @@
             padding: 0;
             width: 100vw;
             height: 100vh;
-            background-color: #121212; /* Mélysötét háttér */
+            background-color: #121212;
             color: #ffffff;
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             overflow: hidden;
@@ -28,16 +28,16 @@
             --poster-color: transparent;
         }
 
-        /* Egyedi AR gomb középre rendezve */
+        /* Egyedi AR gomb - Középre rendezve, iPad és mobil barát */
         #ar-button {
             background-color: #ffffff;
             border-radius: 30px;
             border: none;
             position: absolute;
-            bottom: 120px; /* A választó lista felett legyen */
+            bottom: 130px; /* A választó lista felett */
             left: 50%;
-            transform: translateX(-50%);
-            padding: 12px 24px;
+            transform: translateX(-50%); /* Ez garantálja a tökéletes középre igazítást */
+            padding: 15px 30px;
             font-size: 16px;
             font-weight: bold;
             color: #121212;
@@ -54,12 +54,15 @@
             background-color: #cccccc;
         }
 
-        /* Alsó választó konténer sötétben */
+        /* Alsó választó konténer - Középre rögzítve */
         .ui-container {
             position: absolute;
             bottom: 30px;
-            right: 30px;
-            left: 30px; /* Mobilon jobb ha szélesebb */
+            left: 50%;
+            transform: translateX(-50%); /* Tökéletes középre igazítás */
+            width: 85%; /* Szélesség mobilon */
+            max-width: 400px; /* iPaden nem lesz túl széles, nem lóg le */
+            box-sizing: border-box; /* Megakadályozza a kilógást */
             z-index: 100;
             background: #1e1e1e;
             padding: 15px;
@@ -77,6 +80,7 @@
             color: #888;
             text-transform: uppercase;
             letter-spacing: 1px;
+            text-align: center; /* Szöveg középre */
         }
 
         .ui-container select {
@@ -88,10 +92,11 @@
             color: white;
             cursor: pointer;
             outline: none;
-            -webkit-appearance: none; /* iOS egyedi stílus javítás */
+            -webkit-appearance: none;
+            text-align: center; /* Opciók középre */
         }
 
-        /* AR közben elrejtjük a UI-t ha szükséges */
+        /* AR közben elrejtjük a UI-t */
         model-viewer[ar-status="session-started"] .ui-container,
         model-viewer[ar-status="session-started"] #ar-button {
             display: none;
@@ -110,7 +115,6 @@
         exposure="1"
         environment-image="neutral">
         
-        <!-- Középre rendezett egyedi gomb -->
         <button slot="ar-button" id="ar-button">
             👋 INDÍTÁS AR-BAN
         </button>
@@ -135,10 +139,10 @@
             const projectFromUrl = urlParams.get('project');
 
             function loadModel(projectName) {
-                // Fájlok betöltése - .reality kiterjesztéssel iOS-re!
-                // Mivel a GitHub-odon a gyökérben vannak a fájlok, nem kell 'models/' mappa
-                const glbPath = projectName + '.glb';
-                const realityPath = projectName + '.reality'; 
+                // VISSZATETTÜK A MODELS MAPPÁT AZ ELÉRÉSI ÚTBA!
+                // Így már meg fogja találni a .reality fájlt, és elindul az AR.
+                const glbPath = 'models/' + projectName + '.glb';
+                const realityPath = 'models/' + projectName + '.reality'; 
 
                 viewer.setAttribute('src', glbPath);
                 viewer.setAttribute('ios-src', realityPath);
