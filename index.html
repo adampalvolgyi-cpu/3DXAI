@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Építészeti AR Kiállítás</title>
+    
+    <!-- Google Model Viewer betöltése -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+    
+    <style>
+        /* Alapvető oldal beállítások */
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #e0e0e0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden; /* Ne lehessen görgetni az oldalt */
+        }
+
+        /* A 3D nézőke teljes képernyős legyen */
+        model-viewer {
+            width: 100%;
+            height: 100%;
+            --poster-color: transparent;
+        }
+
+        /* Modellválasztó lenyíló lista stílusa a jobb alsó sarokban */
+        .ui-container {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            z-index: 100;
+            background: white;
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .ui-container label {
+            font-size: 12px;
+            font-weight: bold;
+            color: #333;
+            text-transform: uppercase;
+        }
+
+        .ui-container select {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+            cursor: pointer;
+            outline: none;
+            min-width: 200px;
+        }
+
+        .ui-container select:focus {
+            border-color: #007BFF;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- A 3D Nézőke 
+         Az ar-scale="fixed" nagyon fontos az építészethez: rögzíti az 1:1 méretet!
+    -->
+    <model-viewer 
+        id="ar-viewer"
+        ar 
+        ar-modes="webxr scene-viewer quick-look" 
+        ar-scale="fixed"
+        camera-controls 
+        shadow-intensity="1"
+        exposure="1.2"
+        environment-image="neutral"
+        alt="Építészeti 3D modell">
+    </model-viewer>
+
+    <!-- UI: Modellválasztó a jobb alsó sarokban -->
+    <div class="ui-container">
+        <label for="project-selector">Válassz projektet:</label>
+        <select id="project-selector">
+            <!-- A value az a fájlnév kiterjesztés nélkül -->
+            <option value="project1">1. Csapat: Főépület</option>
+            <option value="project2">2. Csapat: Pavilon</option>
+            <option value="project3">3. Csapat: Belső tér</option>
+            <option value="project4">4. Csapat: Tájépítészet</option>
+            <!-- Ide írhatod be mind a 20 projektet -->
+        </select>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const viewer = document.getElementById('ar-viewer');
+            const selector = document.getElementById('project-selector');
+
+            // 1. Megnézzük, van-e URL paraméter (pl. index.html?project=project2)
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectFromUrl = urlParams.get('project');
+
+            // 2. Függvény a modellek betöltésére
+            function loadModel(projectName) {
+                // Fájlok elérési útja (feltételezzük, hogy egy 'models' nevű mappában vannak)
+                // Ha nincsenek mappában, csak töröld ki a 'models/' részt a kódból!
+                const glbPath = `models/${projectName}.glb`;
+                const usdzPath = `models/${projectName}.usdz`; // Vagy .reality
+
+                viewer.setAttribute('src', glbPath);
+                viewer.setAttribute('ios-src', usdzPath);
+            }
+
+            // 3. Kezdeti állapot beállítása
+            if (projectFromUrl && document.querySelector(`#project-selector option[value="${projectFromUrl}"]`)) {
+                // Ha van érvényes URL paraméter (pl. QR kód beolvasásakor)
+                selector.value = projectFromUrl;
+                loadModel(projectFromUrl);
+            } else {
+                // Ha simán megnyitják az oldalt, töltsük be a lista legelső elemét
+                loadModel(selector.value);
+            }
+
+            // 4. Eseményfigyelő a lenyíló listához (ha a felhasználó manuálisan vált)
+            selector.addEventListener('change', (event) => {
+                const selectedProject = event.target.value;
+                loadModel(selectedProject);
+                
+                // Opcionális: frissítjük a böngésző URL-jét is, hogy meg lehessen osztani
+                const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?project=' + selectedProject;
+                window.history.pushState({path:newUrl}, '', newUrl);
+            });
+        });
+    </script>
+
+</body>
+</html>
