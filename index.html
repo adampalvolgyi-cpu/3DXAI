@@ -28,15 +28,15 @@
             --poster-color: transparent;
         }
 
-        /* Egyedi AR gomb - Középre rendezve, iPad és mobil barát */
+        /* Egyedi AR gomb - JÓVAL FELJEBB EMELVE, hogy ne takarja a menü */
         #ar-button {
             background-color: #ffffff;
             border-radius: 30px;
             border: none;
             position: absolute;
-            bottom: 130px; /* A választó lista felett */
+            bottom: 180px; /* <--- ITT EMELTEM MEG (130px helyett 180px) */
             left: 50%;
-            transform: translateX(-50%); /* Ez garantálja a tökéletes középre igazítást */
+            transform: translateX(-50%);
             padding: 15px 30px;
             font-size: 16px;
             font-weight: bold;
@@ -59,10 +59,10 @@
             position: absolute;
             bottom: 30px;
             left: 50%;
-            transform: translateX(-50%); /* Tökéletes középre igazítás */
-            width: 85%; /* Szélesség mobilon */
-            max-width: 400px; /* iPaden nem lesz túl széles, nem lóg le */
-            box-sizing: border-box; /* Megakadályozza a kilógást */
+            transform: translateX(-50%);
+            width: 85%;
+            max-width: 400px;
+            box-sizing: border-box;
             z-index: 100;
             background: #1e1e1e;
             padding: 15px;
@@ -80,7 +80,7 @@
             color: #888;
             text-transform: uppercase;
             letter-spacing: 1px;
-            text-align: center; /* Szöveg középre */
+            text-align: center;
         }
 
         .ui-container select {
@@ -93,7 +93,7 @@
             cursor: pointer;
             outline: none;
             -webkit-appearance: none;
-            text-align: center; /* Opciók középre */
+            text-align: center;
         }
 
         /* AR közben elrejtjük a UI-t */
@@ -139,10 +139,12 @@
             const projectFromUrl = urlParams.get('project');
 
             function loadModel(projectName) {
-                // VISSZATETTÜK A MODELS MAPPÁT AZ ELÉRÉSI ÚTBA!
-                // Így már meg fogja találni a .reality fájlt, és elindul az AR.
+                // A .glb marad a megszokott
                 const glbPath = 'models/' + projectName + '.glb';
-                const realityPath = 'models/' + projectName + '.reality'; 
+                
+                // HOZZÁADVA: #allowsContentScaling=0
+                // Ez mondja meg az iPadnek, hogy tilos átméretezni a modellt!
+                const realityPath = 'models/' + projectName + '.reality#allowsContentScaling=0'; 
 
                 viewer.setAttribute('src', glbPath);
                 viewer.setAttribute('ios-src', realityPath);
