@@ -5,66 +5,52 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>AR Digital Exhibition</title>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background-color: #111;
-            font-family: sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        #ar-button {
-            padding: 15px 30px;
-            font-size: 18px;
-            font-weight: bold;
-            color: white;
-            background-color: #007bff;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            display: none; /* Hidden until AR is verified as supported */
-        }
-        #ar-button:active {
-            background-color: #0056b3;
-        }
-        #status-text {
-            color: white;
-            position: absolute;
-            top: 20px;
-            text-align: center;
-            width: 100%;
-        }
+        body { margin: 0; overflow: hidden; background-color: #111; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        #ar-button { padding: 15px 30px; font-size: 18px; font-weight: bold; color: white; background-color: #007bff; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); display: none; }
+        #ar-button:active { background-color: #0056b3; }
+        
+        /* Added a background to the text so you can read it over the camera feed */
+        #status-text { color: white; position: absolute; top: 20px; text-align: center; width: 80%; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 8px; z-index: 100;}
     </style>
+
+    <!-- THE FIX: The Import Map tells the browser exactly where to find the 3D libraries -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
 </head>
 <body>
 
     <div id="status-text">Checking AR support...</div>
     <button id="ar-button">Open in AR</button>
 
-    <!-- Import Three.js and WebXR Image Tracking logic -->
     <script type="module">
-        import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
-        import { GLTFLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
         let scene, camera, renderer, model;
         const arButton = document.getElementById('ar-button');
         const statusText = document.getElementById('status-text');
 
-        // 1. Check if the device supports WebXR Image Tracking (Android Chrome)
+        // 1. Safely check for AR Support
         if ('xr' in navigator) {
             navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
                 if (supported) {
                     arButton.style.display = 'block';
-                    statusText.innerText = "Point your camera at the printed anchor image on the wall.";
+                    statusText.innerText = "Ready! Stand in front of the printed anchor.";
                 } else {
-                    statusText.innerText = "AR is not supported on this device/browser.";
+                    statusText.innerText = "AR is not supported on this device.";
                 }
+            }).catch(err => {
+                statusText.innerText = "Error checking AR: " + err.message;
             });
         } else {
-            statusText.innerText = "WebXR is not available.";
+            // WebXR only works on HTTPS (which GitHub Pages uses). If tested locally, it fails here.
+            statusText.innerText = "WebXR not found. Make sure you are using GitHub Pages (HTTPS).";
         }
 
         // 2. Setup the 3D Scene
@@ -72,7 +58,6 @@
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
 
-            // Add lighting so the exhibition isn't dark
             const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
             light.position.set(0.5, 1, 0.25);
             scene.add(light);
@@ -81,7 +66,6 @@
             directionalLight.position.set(0, 2, 1);
             scene.add(directionalLight);
 
-            // Setup the renderer to handle AR
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.xr.enabled = true;
@@ -92,80 +76,86 @@
             const loader = new GLTFLoader();
             loader.load('models/project1.glb', (gltf) => {
                 model = gltf.scene;
-                
-                // Hide the model initially. It will only appear when the anchor is found.
                 model.visible = false; 
                 scene.add(model);
             }, undefined, (error) => {
-                console.error("Error loading the GLB model:", error);
-                statusText.innerText = "Error loading 3D model.";
+                console.error("Model load error:", error);
+                statusText.innerText = "Failed to load project1.glb. Check the 'models' folder.";
             });
         }
 
-        // 4. Start the AR Session and track the anchor
+        // 4. Start AR and Request Image Tracking
         async function startAR() {
-            arButton.style.display = 'none';
-            statusText.innerText = "Starting AR...";
+            try {
+                arButton.style.display = 'none';
+                statusText.innerText = "Loading anchor.jpg...";
 
-            // Load the anchor image into a bitmap
-            const img = new Image();
-            img.src = 'anchor.jpg';
-            await img.decode();
-            const imageBitmap = await createImageBitmap(img);
+                // Safely load the anchor image
+                const img = new Image();
+                img.src = 'anchor.jpg';
+                
+                // Wait for the image to physically download before converting it
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = () => reject(new Error("Could not find anchor.jpg in the main folder."));
+                });
+                
+                const imageBitmap = await createImageBitmap(img);
 
-            // Request the AR session, strictly passing the anchor image and its real-world size
-            const session = await navigator.xr.requestSession('immersive-ar', {
-                requiredFeatures: ['image-tracking'],
-                trackedImages:[{
-                    image: imageBitmap,
-                    widthInMeters: 0.38 // 38cm exactly
-                }]
-            });
+                statusText.innerText = "Starting Camera...";
 
-            // Set up the AR render loop
-            renderer.xr.setReferenceSpaceType('local');
-            await renderer.xr.setSession(session);
+                // Request the AR Session. (This fails if chrome://flags/#webxr-incubations is off)
+                const session = await navigator.xr.requestSession('immersive-ar', {
+                    requiredFeatures: ['image-tracking'],
+                    trackedImages:[{
+                        image: imageBitmap,
+                        widthInMeters: 0.38 // 38cm
+                    }]
+                });
 
-            session.requestAnimationFrame(onXRFrame);
-            statusText.innerText = "Scanning for anchor on the wall...";
+                renderer.xr.setReferenceSpaceType('local');
+                await renderer.xr.setSession(session);
+
+                session.requestAnimationFrame(onXRFrame);
+                statusText.innerText = "Scanning for the 38cm image...";
+
+            } catch (error) {
+                console.error(error);
+                // If it fails, print the exact error to the phone screen
+                statusText.innerText = "AR Crash: " + error.message;
+                arButton.style.display = 'block'; 
+            }
         }
 
-        // 5. The AR Loop: Detect image, snap model, let SLAM take over
+        // 5. The Tracking Loop
         function onXRFrame(time, frame) {
             const session = frame.session;
             session.requestAnimationFrame(onXRFrame);
 
-            // Check if the camera sees our anchor image
             const results = frame.getImageTrackingResults();
 
             for (const result of results) {
-                // 'tracked' means the camera is currently looking at the physical image
                 if (result.trackingState === 'tracked') {
                     const referenceSpace = renderer.xr.getReferenceSpace();
                     const pose = frame.getPose(result.imageSpace, referenceSpace);
 
                     if (pose && model) {
-                        // Snap the model to the exact 0,0,0 center of the physical image
                         model.position.copy(pose.transform.position);
                         model.quaternion.copy(pose.transform.orientation);
                         
-                        // Reveal the artwork!
                         model.visible = true;
-                        statusText.innerText = ""; // Clear text
+                        statusText.innerText = "Exhibition Placed! You can look around."; 
                     }
                 } 
-                // 'emulated' means the camera looked away, SLAM takes over!
                 else if (result.trackingState === 'emulated') {
-                    // We don't change the position here. 
-                    // Android's SLAM keeps the world coordinate system stable, 
-                    // so the 3D model stays exactly where we left it on the wall.
+                    // When tracking state is emulated, SLAM takes over.
+                    // We intentionally do nothing here to let the model stay locked in physical space.
                 }
             }
 
             renderer.render(scene, camera);
         }
 
-        // Initialize everything
         initScene();
         loadModel();
         arButton.addEventListener('click', startAR);
