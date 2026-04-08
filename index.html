@@ -1,169 +1,175 @@
 <!DOCTYPE html>
-<html lang="hu">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>3DXAI - Építészeti AR</title>
-    
-    <!-- Google Model Viewer betöltése -->
-    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
-    
+    <title>AR Digital Exhibition</title>
     <style>
-        /* Sötét téma beállítása */
         body {
             margin: 0;
-            padding: 0;
-            width: 100vw;
-            height: 100vh;
-            background-color: #121212;
-            color: #ffffff;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             overflow: hidden;
-        }
-
-        model-viewer {
-            width: 100%;
-            height: 100%;
-            background-color: #121212;
-            --poster-color: transparent;
-        }
-
-        /* Egyedi AR gomb - JÓVAL FELJEBB EMELVE, hogy ne takarja a menü */
-        #ar-button {
-            background-color: #ffffff;
-            border-radius: 30px;
-            border: none;
-            position: absolute;
-            bottom: 180px; /* <--- ITT EMELTEM MEG (130px helyett 180px) */
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 15px 30px;
-            font-size: 16px;
-            font-weight: bold;
-            color: #121212;
+            background-color: #111;
+            font-family: sans-serif;
             display: flex;
+            justify-content: center;
             align-items: center;
-            gap: 10px;
-            cursor: pointer;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-            z-index: 1000;
-            white-space: nowrap;
+            height: 100vh;
         }
-
-        #ar-button:active {
-            background-color: #cccccc;
-        }
-
-        /* Alsó választó konténer - Középre rögzítve */
-        .ui-container {
-            position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 85%;
-            max-width: 400px;
-            box-sizing: border-box;
-            z-index: 100;
-            background: #1e1e1e;
-            padding: 15px;
-            border-radius: 15px;
-            box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.5);
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            border: 1px solid #333;
-        }
-
-        .ui-container label {
-            font-size: 11px;
+        #ar-button {
+            padding: 15px 30px;
+            font-size: 18px;
             font-weight: bold;
-            color: #888;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            text-align: center;
-        }
-
-        .ui-container select {
-            padding: 12px;
-            font-size: 16px;
-            border: 1px solid #444;
-            border-radius: 10px;
-            background-color: #2d2d2d;
             color: white;
+            background-color: #007bff;
+            border: none;
+            border-radius: 8px;
             cursor: pointer;
-            outline: none;
-            -webkit-appearance: none;
-            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            display: none; /* Hidden until AR is verified as supported */
         }
-
-        /* AR közben elrejtjük a UI-t */
-        model-viewer[ar-status="session-started"] .ui-container,
-        model-viewer[ar-status="session-started"] #ar-button {
-            display: none;
+        #ar-button:active {
+            background-color: #0056b3;
+        }
+        #status-text {
+            color: white;
+            position: absolute;
+            top: 20px;
+            text-align: center;
+            width: 100%;
         }
     </style>
 </head>
 <body>
 
-    <model-viewer 
-        id="ar-viewer"
-        ar 
-        ar-modes="webxr scene-viewer quick-look" 
-        ar-scale="fixed"
-        camera-controls 
-        shadow-intensity="1"
-        exposure="1"
-        environment-image="neutral">
-        
-        <button slot="ar-button" id="ar-button">
-            👋 INDÍTÁS AR-BAN
-        </button>
+    <div id="status-text">Checking AR support...</div>
+    <button id="ar-button">Open in AR</button>
 
-    </model-viewer>
+    <!-- Import Three.js and WebXR Image Tracking logic -->
+    <script type="module">
+        import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+        import { GLTFLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
 
-    <div class="ui-container">
-        <label for="project-selector">3D PROJEKT KIVÁLASZTÁSA</label>
-        <select id="project-selector">
-            <option value="project1">1. Projekt: Teszt</option>
-            <option value="project2">2. Projekt: Második</option>
-            <!-- Ide jöhet a többi projekt... -->
-        </select>
-    </div>
+        let scene, camera, renderer, model;
+        const arButton = document.getElementById('ar-button');
+        const statusText = document.getElementById('status-text');
 
-    <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            const viewer = document.getElementById('ar-viewer');
-            const selector = document.getElementById('project-selector');
-
-            const urlParams = new URLSearchParams(window.location.search);
-            const projectFromUrl = urlParams.get('project');
-
-            function loadModel(projectName) {
-                // A .glb marad a megszokott
-                const glbPath = 'models/' + projectName + '.glb';
-                
-                // HOZZÁADVA: #allowsContentScaling=0
-                // Ez mondja meg az iPadnek, hogy tilos átméretezni a modellt!
-                const realityPath = 'models/' + projectName + '.reality#allowsContentScaling=0'; 
-
-                viewer.setAttribute('src', glbPath);
-                viewer.setAttribute('ios-src', realityPath);
-            }
-
-            if (projectFromUrl && document.querySelector(`#project-selector option[value="${projectFromUrl}"]`)) {
-                selector.value = projectFromUrl;
-                loadModel(projectFromUrl);
-            } else {
-                loadModel(selector.value);
-            }
-
-            selector.addEventListener('change', (event) => {
-                loadModel(event.target.value);
-                const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?project=' + event.target.value;
-                window.history.pushState({path:newUrl}, '', newUrl);
+        // 1. Check if the device supports WebXR Image Tracking (Android Chrome)
+        if ('xr' in navigator) {
+            navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
+                if (supported) {
+                    arButton.style.display = 'block';
+                    statusText.innerText = "Point your camera at the printed anchor image on the wall.";
+                } else {
+                    statusText.innerText = "AR is not supported on this device/browser.";
+                }
             });
-        });
-    </script>
+        } else {
+            statusText.innerText = "WebXR is not available.";
+        }
 
+        // 2. Setup the 3D Scene
+        function initScene() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+
+            // Add lighting so the exhibition isn't dark
+            const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+            light.position.set(0.5, 1, 0.25);
+            scene.add(light);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(0, 2, 1);
+            scene.add(directionalLight);
+
+            // Setup the renderer to handle AR
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.xr.enabled = true;
+        }
+
+        // 3. Load the 3D Model
+        function loadModel() {
+            const loader = new GLTFLoader();
+            loader.load('models/project1.glb', (gltf) => {
+                model = gltf.scene;
+                
+                // Hide the model initially. It will only appear when the anchor is found.
+                model.visible = false; 
+                scene.add(model);
+            }, undefined, (error) => {
+                console.error("Error loading the GLB model:", error);
+                statusText.innerText = "Error loading 3D model.";
+            });
+        }
+
+        // 4. Start the AR Session and track the anchor
+        async function startAR() {
+            arButton.style.display = 'none';
+            statusText.innerText = "Starting AR...";
+
+            // Load the anchor image into a bitmap
+            const img = new Image();
+            img.src = 'anchor.jpg';
+            await img.decode();
+            const imageBitmap = await createImageBitmap(img);
+
+            // Request the AR session, strictly passing the anchor image and its real-world size
+            const session = await navigator.xr.requestSession('immersive-ar', {
+                requiredFeatures: ['image-tracking'],
+                trackedImages:[{
+                    image: imageBitmap,
+                    widthInMeters: 0.38 // 38cm exactly
+                }]
+            });
+
+            // Set up the AR render loop
+            renderer.xr.setReferenceSpaceType('local');
+            await renderer.xr.setSession(session);
+
+            session.requestAnimationFrame(onXRFrame);
+            statusText.innerText = "Scanning for anchor on the wall...";
+        }
+
+        // 5. The AR Loop: Detect image, snap model, let SLAM take over
+        function onXRFrame(time, frame) {
+            const session = frame.session;
+            session.requestAnimationFrame(onXRFrame);
+
+            // Check if the camera sees our anchor image
+            const results = frame.getImageTrackingResults();
+
+            for (const result of results) {
+                // 'tracked' means the camera is currently looking at the physical image
+                if (result.trackingState === 'tracked') {
+                    const referenceSpace = renderer.xr.getReferenceSpace();
+                    const pose = frame.getPose(result.imageSpace, referenceSpace);
+
+                    if (pose && model) {
+                        // Snap the model to the exact 0,0,0 center of the physical image
+                        model.position.copy(pose.transform.position);
+                        model.quaternion.copy(pose.transform.orientation);
+                        
+                        // Reveal the artwork!
+                        model.visible = true;
+                        statusText.innerText = ""; // Clear text
+                    }
+                } 
+                // 'emulated' means the camera looked away, SLAM takes over!
+                else if (result.trackingState === 'emulated') {
+                    // We don't change the position here. 
+                    // Android's SLAM keeps the world coordinate system stable, 
+                    // so the 3D model stays exactly where we left it on the wall.
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Initialize everything
+        initScene();
+        loadModel();
+        arButton.addEventListener('click', startAR);
+
+    </script>
 </body>
 </html>
