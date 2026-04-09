@@ -7,6 +7,7 @@
   Version: 1.4 - Fixed premature UI teardown by isolating teardown logic exclusively to 'not-presenting' state.
   Version: 1.5 - Reverted to auto-anchoring, removed manual placement buttons, added auto-hide logic for ghost anchor.
   Version: 1.6 - Shrunk ghost image by 20%, added ios-src attribute for native Apple RealityKit image tracking fallback.
+  Version: 1.7 - Reverted parallax instructions, added dynamic horizontal scroll menu for 20 projects, updated JS to mutate src/ios-src dynamically.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -33,7 +34,7 @@
     /* Standard HTML Button to launch AR */
     #ar-button {
       position: absolute;
-      bottom: 40px;
+      bottom: 100px; /* Shifted up to make room for project list */
       left: 50%;
       transform: translateX(-50%);
       background-color: #fff;
@@ -45,6 +46,48 @@
       border-radius: 8px;
       cursor: pointer;
       z-index: 100;
+    }
+
+    /* Scrolling Project List */
+    #project-list {
+      position: absolute;
+      bottom: 15px;
+      left: 0;
+      width: 100%;
+      height: 60px;
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 0 20px;
+      box-sizing: border-box;
+      z-index: 100;
+      align-items: center;
+      /* Hide scrollbar for cleaner UI */
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    
+    #project-list::-webkit-scrollbar {
+      display: none;
+    }
+
+    .project-btn {
+      flex-shrink: 0;
+      background-color: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: 1px solid #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: sans-serif;
+      font-size: 14px;
+      transition: background-color 0.2s, color 0.2s;
+    }
+
+    .project-btn.active {
+      background-color: #fff;
+      color: #000;
+      font-weight: bold;
     }
 
     /* Custom AR UI Overlay Container */
@@ -83,7 +126,6 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      /* Reduced size by 20% to expose more physical wall area for camera tracking */
       width: 48vw; 
       max-width: 240px;
       opacity: 0.25;
@@ -123,24 +165,26 @@
     alt="Digital Art 3D Model">
 
     <!-- Version Marker -->
-    <div id="version-display">v1.6</div>
+    <div id="version-display">v1.7</div>
 
     <!-- AR Launch Button -->
     <button slot="ar-button" id="ar-button">Open in AR</button>
 
-    <!-- Custom AR DOM Overlay (Android WebXR only, ignored by iOS Quick Look) -->
+    <!-- Custom AR DOM Overlay (Android WebXR only) -->
     <div id="ar-ui-container">
       <div id="calibration-state" class="ar-ui-layer">
         <div id="instructions">
           1. Scan the wall until the model appears.<br>
-          2. Drag the model to align it with the poster.<br>
-          (Push model backward if it looks too large)
+          2. Drag the model to align it with the poster.
         </div>
         <img id="ghost-image" src="anchor.jpg" alt="Ghost Anchor">
       </div>
     </div>
 
   </model-viewer>
+
+  <!-- Horizontal Scrolling Project Menu (Sits in 2D space, ignored by WebXR overlay) -->
+  <div id="project-list"></div>
 
   <!-- Import latest model-viewer -->
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
@@ -150,8 +194,34 @@
     const arUiContainer = document.getElementById('ar-ui-container');
     const ghostImage = document.getElementById('ghost-image');
     const instructions = document.getElementById('instructions');
+    const projectList = document.getElementById('project-list');
     
     let ghostTimeout;
+
+    // Build the dynamic project menu (20 items)
+    for (let i = 1; i <= 20; i++) {
+      const btn = document.createElement('button');
+      btn.className = 'project-btn';
+      btn.innerText = `Project ${i}`;
+      
+      // Default state: highlight the first project
+      if (i === 1) {
+        btn.classList.add('active');
+      }
+
+      // Event Listener: Swap 3D models when a button is clicked
+      btn.addEventListener('click', () => {
+        // 1. Update the models
+        viewer.setAttribute('src', `models/project${i}.glb`);
+        viewer.setAttribute('ios-src', `models/project${i}.reality`);
+        
+        // 2. Update UI styling to show active selection
+        document.querySelectorAll('.project-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+
+      projectList.appendChild(btn);
+    }
 
     // Toggle AR UI visibility based on WebXR session status (Android only)
     viewer.addEventListener('ar-status', (event) => {
