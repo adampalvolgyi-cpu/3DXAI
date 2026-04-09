@@ -1,8 +1,9 @@
-<!-- Version: 1.8 -->
+<!-- Version: 1.9 -->
 <!-- Changelog:
-  - Removed ios-src attribute from <model-viewer> to prevent GitHub Pages MIME-type fetching errors.
-  - Added native iOS detection script.
-  - Implemented raw HTML Anchor (rel="ar") injection to bypass Safari security blocks for .reality files.
+  - Scrapped synthetic JavaScript click for iOS AR launch due to Safari security blocks.
+  - Implemented Dual-Button Architecture: Added hardcoded <a> tag specifically for iOS Safari.
+  - Added OS-level display toggling to ensure only the strictly compliant button is rendered per device.
+  - Re-introduced hidden <img> child to the iOS anchor to satisfy Apple Quick Look validation rules.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -14,11 +15,13 @@
     body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #111; }
     model-viewer { width: 100%; height: 100%; }
 
-    #ar-button {
+    /* Shared styling for both Android and iOS AR buttons */
+    .ar-launcher {
       position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%);
       background-color: #fff; color: #000; padding: 15px 30px;
       font-size: 18px; font-weight: bold; border: none; border-radius: 8px;
-      cursor: pointer; z-index: 100;
+      cursor: pointer; z-index: 100; text-decoration: none; display: none; /* Hidden by default */
+      text-align: center;
     }
 
     #project-list {
@@ -61,7 +64,6 @@
 </head>
 <body>
 
-  <!-- Notice: ios-src has been removed. We handle iOS manually via JS now. -->
   <model-viewer
     id="exhibition-viewer"
     src="models/project1.glb"
@@ -72,11 +74,19 @@
     camera-controls
     alt="Digital Art 3D Model">
 
-    <div id="version-display">v1.8</div>
+    <div id="version-display">v1.9</div>
     
-    <!-- We removed slot="ar-button" so we have total control over the click event -->
-    <button id="ar-button">Open in AR</button>
+    <!-- BUTTON 1: ANDROID / WEBXR -->
+    <button id="ar-button-android" class="ar-launcher">Open in AR</button>
 
+    <!-- BUTTON 2: APPLE / iOS SAFARI (Native Anchor Tag) -->
+    <a id="ar-button-ios" class="ar-launcher" rel="ar" href="models/project1.reality#allowsContentScaling=0">
+      Open in AR
+      <!-- Apple requires an image child element inside the anchor to validate Quick Look -->
+      <img src="anchor.jpg" style="display:none;" alt="hidden validation image">
+    </a>
+
+    <!-- Custom AR DOM Overlay (Android WebXR only) -->
     <div id="ar-ui-container">
       <div id="calibration-state" class="ar-ui-layer">
         <div id="instructions">
@@ -98,13 +108,21 @@
     const ghostImage = document.getElementById('ghost-image');
     const instructions = document.getElementById('instructions');
     const projectList = document.getElementById('project-list');
-    const arButton = document.getElementById('ar-button');
+    
+    const androidBtn = document.getElementById('ar-button-android');
+    const iosBtn = document.getElementById('ar-button-ios');
     
     let ghostTimeout;
-    let currentProjectIndex = 1; // Track which project is currently selected
 
     // Detect if the user is on an Apple device (iPhone or iPad)
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    // Display the correct button based on OS to satisfy Safari security rules
+    if (isIOS) {
+      iosBtn.style.display = 'block';
+    } else {
+      androidBtn.style.display = 'block';
+    }
 
     // Build the dynamic project menu (20 items)
     for (let i = 1; i <= 20; i++) {
@@ -115,9 +133,11 @@
       if (i === 1) btn.classList.add('active');
 
       btn.addEventListener('click', () => {
-        currentProjectIndex = i;
-        // Update Android/Web model
+        // Update Android/Web .glb model
         viewer.setAttribute('src', `models/project${i}.glb`);
+        
+        // Update iOS Safari .reality link target
+        iosBtn.setAttribute('href', `models/project${i}.reality#allowsContentScaling=0`);
         
         // Update UI styling
         document.querySelectorAll('.project-btn').forEach(b => b.classList.remove('active'));
@@ -127,26 +147,9 @@
       projectList.appendChild(btn);
     }
 
-    // Custom AR Button Logic
-    arButton.addEventListener('click', () => {
-      if (isIOS) {
-        // NATIVE iOS BYPASS: Force Safari to open the .reality file directly
-        const a = document.createElement('a');
-        a.setAttribute('rel', 'ar');
-        // Appending #allowsContentScaling=0 forces ARKit to lock the 38cm size
-        a.setAttribute('href', `models/project${currentProjectIndex}.reality#allowsContentScaling=0`);
-        
-        // Apple requires an image inside the anchor tag for Quick Look to trigger reliably
-        const img = document.createElement('img');
-        a.appendChild(img);
-        
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } else {
-        // ANDROID: Trigger the standard <model-viewer> WebXR experience
-        viewer.activateAR();
-      }
+    // Android WebXR Trigger Logic (iOS button handles itself natively)
+    androidBtn.addEventListener('click', () => {
+      viewer.activateAR();
     });
 
     // Toggle AR UI visibility based on WebXR session status (Android only)
