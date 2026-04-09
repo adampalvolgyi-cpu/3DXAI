@@ -1,4 +1,4 @@
-<!-- Version: 1.0 -->
+<!-- Version: 1.2 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -46,20 +46,12 @@
       z-index: 1000;
     }
 
-    /* Invisible layer to block default drag/rotate gestures */
-    #interaction-blocker {
-      position: absolute;
-      inset: 0;
-      pointer-events: auto; /* Absorbs touch events */
-      z-index: 10;
-    }
-
-    /* UI Elements sit above the blocker */
+    /* UI Elements */
     .ar-ui-layer {
       position: absolute;
       inset: 0;
       z-index: 20;
-      pointer-events: none; /* Let touches pass through to blocker or buttons */
+      pointer-events: none; /* Let touches pass through to buttons or model-viewer */
     }
 
     /* Calibration State UI */
@@ -115,9 +107,24 @@
       border-radius: 4px;
       pointer-events: auto; /* Make clickable */
     }
+
+    /* Version Display */
+    #version-display {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      color: rgba(255, 255, 255, 0.5);
+      font-family: sans-serif;
+      font-size: 12px;
+      z-index: 9999;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
+
+  <!-- Version Marker -->
+  <div id="version-display">v1.2</div>
 
   <!-- 
     ar-placement="wall" forces the hit-test against vertical surfaces.
@@ -137,7 +144,6 @@
 
     <!-- Custom AR DOM Overlay -->
     <div id="ar-ui-container">
-      <div id="interaction-blocker"></div>
 
       <!-- State 1: Calibration -->
       <div id="calibration-state" class="ar-ui-layer">
@@ -168,7 +174,6 @@
     const placedState = document.getElementById('placed-state');
     const placeButton = document.getElementById('place-button');
     const retryButton = document.getElementById('retry-button');
-    const blocker = document.getElementById('interaction-blocker');
 
     // Toggle AR UI visibility based on WebXR session status
     viewer.addEventListener('ar-status', (event) => {
@@ -179,7 +184,6 @@
         // Reset state upon exiting AR
         placedState.style.display = 'none';
         calibrationState.style.display = 'block';
-        blocker.style.pointerEvents = 'auto';
       }
     });
 
@@ -188,25 +192,16 @@
       calibrationState.style.display = 'none';
       placedState.style.display = 'block';
 
-      // 2. Drop the interaction blocker momentarily to allow placement
-      blocker.style.pointerEvents = 'none';
-
-      // 3. Calculate exact center of the screen (where ghost image is)
+      // 2. Calculate exact center of the screen (where ghost image is)
       const centerX = window.innerWidth / 2;
       const centerY = window.innerHeight / 2;
 
-      // 4. Dispatch synthetic pointer events to trigger <model-viewer> hit-test
+      // 3. Dispatch synthetic pointer events to trigger <model-viewer> hit-test
       const pointerDown = new PointerEvent('pointerdown', { clientX: centerX, clientY: centerY, bubbles: true });
       const pointerUp = new PointerEvent('pointerup', { clientX: centerX, clientY: centerY, bubbles: true });
       
       viewer.dispatchEvent(pointerDown);
       viewer.dispatchEvent(pointerUp);
-
-      // 5. Restore interaction blocker to freeze the model's position
-      // Timeout ensures the event loop processes the placement click first
-      setTimeout(() => {
-        blocker.style.pointerEvents = 'auto';
-      }, 50);
     });
 
     retryButton.addEventListener('click', () => {
