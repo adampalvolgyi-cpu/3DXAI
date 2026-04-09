@@ -1,4 +1,12 @@
-<!-- Version: 1.4 -->
+<!-- 
+  Version History:
+  Version: 1.0 - Initial setup with DOM Overlay, state segregation, and synthetic click hit-testing.
+  Version: 1.1 - Removed interaction blocker to re-enable native WebXR touch gestures.
+  Version: 1.2 - Added persistent version display element to the DOM.
+  Version: 1.3 - Fixed Exit AR pointer blocking, added bounds="tight", implemented 0.0001 scale pre-hiding.
+  Version: 1.4 - Fixed premature UI teardown by isolating teardown logic exclusively to 'not-presenting' state.
+  Version: 1.5 - Reverted to auto-anchoring, removed manual placement buttons, added auto-hide logic for ghost anchor.
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -81,35 +89,6 @@
       pointer-events: none;
     }
 
-    #place-button {
-      position: absolute;
-      bottom: 40px;
-      left: 50%;
-      transform: translateX(-50%);
-      background-color: #28a745;
-      color: white;
-      padding: 15px 30px;
-      font-size: 18px;
-      font-weight: bold;
-      border: none;
-      border-radius: 8px;
-      pointer-events: auto; /* Make clickable */
-    }
-
-    /* Placed State UI */
-    #retry-button {
-      position: absolute;
-      top: 20px;
-      right: 20px; /* Shifted to right to avoid overlapping version display */
-      background-color: rgba(0, 0, 0, 0.6);
-      color: white;
-      padding: 10px 15px;
-      font-size: 14px;
-      border: 1px solid #fff;
-      border-radius: 4px;
-      pointer-events: auto; /* Make clickable */
-    }
-
     /* Version Display */
     #version-display {
       position: absolute;
@@ -140,7 +119,7 @@
     alt="Digital Art 3D Model">
 
     <!-- Version Marker (Nested inside model-viewer to inherit DOM Overlay in WebXR) -->
-    <div id="version-display">v1.4</div>
+    <div id="version-display">v1.5</div>
 
     <!-- AR Launch Button -->
     <button slot="ar-button" id="ar-button">Open in AR</button>
@@ -151,18 +130,12 @@
       <!-- State 1: Calibration -->
       <div id="calibration-state" class="ar-ui-layer">
         <div id="instructions">
-          1. Scan the wall.<br>
-          2. Aim this ghost image at the real poster.<br>
-          3. Tap the green button!
+          1. Scan the wall until the model appears.<br>
+          2. Drag the model to align it with the poster.
         </div>
         <img id="ghost-image" src="anchor.jpg" alt="Ghost Anchor">
-        <button id="place-button">Place the model</button>
       </div>
-
-      <!-- State 2: Model Placed -->
-      <div id="placed-state" class="ar-ui-layer" style="display: none;">
-        <button id="retry-button">Retry Alignment</button>
-      </div>
+      
     </div>
 
   </model-viewer>
@@ -174,53 +147,34 @@
     const viewer = document.getElementById('exhibition-viewer');
     const arUiContainer = document.getElementById('ar-ui-container');
     const calibrationState = document.getElementById('calibration-state');
-    const placedState = document.getElementById('placed-state');
-    const placeButton = document.getElementById('place-button');
-    const retryButton = document.getElementById('retry-button');
+    const ghostImage = document.getElementById('ghost-image');
+    const instructions = document.getElementById('instructions');
+    
+    let ghostTimeout;
 
     // Toggle AR UI visibility based on WebXR session status
     viewer.addEventListener('ar-status', (event) => {
       if (event.detail.status === 'not-presenting') {
-        // Exited AR: Safely hide the custom UI and restore the model size
+        // Exited AR: Safely hide the custom UI and clear any pending timeouts
         arUiContainer.style.display = 'none';
-        placedState.style.display = 'none';
-        calibrationState.style.display = 'block';
-        viewer.setAttribute('scale', '1 1 1');
+        clearTimeout(ghostTimeout);
       } else if (event.detail.status === 'session-started') {
-        // Entered AR: Show the custom UI and shrink the model to hide it during scanning
+        // Entered AR: Show the custom UI to guide scanning
         arUiContainer.style.display = 'block';
-        viewer.setAttribute('scale', '0.0001 0.0001 0.0001');
-      }
-      // If status is 'object-placed', do nothing. Allow the UI to remain visible.
-    });
-
-    placeButton.addEventListener('click', () => {
-      // 1. Swap UI states
-      calibrationState.style.display = 'none';
-      placedState.style.display = 'block';
-
-      // 2. Restore model scale so the WebXR hit-test uses correct bounding box geometry
-      viewer.setAttribute('scale', '1 1 1');
-
-      // 3. Allow WebXR a brief frame to update the restored geometry, then force placement
-      setTimeout(() => {
-        const centerX = window.innerWidth / 2;
-        const centerY = window.innerHeight / 2;
-
-        const pointerDown = new PointerEvent('pointerdown', { clientX: centerX, clientY: centerY, bubbles: true });
-        const pointerUp = new PointerEvent('pointerup', { clientX: centerX, clientY: centerY, bubbles: true });
+        ghostImage.style.display = 'block';
+        instructions.style.display = 'block';
         
-        viewer.dispatchEvent(pointerDown);
-        viewer.dispatchEvent(pointerUp);
-      }, 50);
-    });
-
-    retryButton.addEventListener('click', () => {
-      // Revert UI to allow re-calibration
-      placedState.style.display = 'none';
-      calibrationState.style.display = 'block';
-      // Hide the model again
-      viewer.setAttribute('scale', '0.0001 0.0001 0.0001');
+        // Failsafe: Hide ghost image and instructions after 10 seconds if tracking fails
+        ghostTimeout = setTimeout(() => {
+          ghostImage.style.display = 'none';
+          instructions.style.display = 'none';
+        }, 10000);
+      } else if (event.detail.status === 'object-placed') {
+        // AR Scene is Tracked: Wall found, model auto-anchored. Hide calibration UI.
+        ghostImage.style.display = 'none';
+        instructions.style.display = 'none';
+        clearTimeout(ghostTimeout);
+      }
     });
   </script>
 </body>
