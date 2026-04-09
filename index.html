@@ -1,13 +1,8 @@
-<!-- 
-  Version History:
-  Version: 1.0 - Initial setup with DOM Overlay, state segregation, and synthetic click hit-testing.
-  Version: 1.1 - Removed interaction blocker to re-enable native WebXR touch gestures.
-  Version: 1.2 - Added persistent version display element to the DOM.
-  Version: 1.3 - Fixed Exit AR pointer blocking, added bounds="tight", implemented 0.0001 scale pre-hiding.
-  Version: 1.4 - Fixed premature UI teardown by isolating teardown logic exclusively to 'not-presenting' state.
-  Version: 1.5 - Reverted to auto-anchoring, removed manual placement buttons, added auto-hide logic for ghost anchor.
-  Version: 1.6 - Shrunk ghost image by 20%, added ios-src attribute for native Apple RealityKit image tracking fallback.
-  Version: 1.7 - Reverted parallax instructions, added dynamic horizontal scroll menu for 20 projects, updated JS to mutate src/ios-src dynamically.
+<!-- Version: 1.8 -->
+<!-- Changelog:
+  - Removed ios-src attribute from <model-viewer> to prevent GitHub Pages MIME-type fetching errors.
+  - Added native iOS detection script.
+  - Implemented raw HTML Anchor (rel="ar") injection to bypass Safari security blocks for .reality files.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -16,147 +11,60 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Digital Art Exhibition AR</title>
   <style>
-    /* Reset and ensure full screen */
-    body, html {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background-color: #111;
-    }
+    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #111; }
+    model-viewer { width: 100%; height: 100%; }
 
-    model-viewer {
-      width: 100%;
-      height: 100%;
-    }
-
-    /* Standard HTML Button to launch AR */
     #ar-button {
-      position: absolute;
-      bottom: 100px; /* Shifted up to make room for project list */
-      left: 50%;
-      transform: translateX(-50%);
-      background-color: #fff;
-      color: #000;
-      padding: 15px 30px;
-      font-size: 18px;
-      font-weight: bold;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      z-index: 100;
+      position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%);
+      background-color: #fff; color: #000; padding: 15px 30px;
+      font-size: 18px; font-weight: bold; border: none; border-radius: 8px;
+      cursor: pointer; z-index: 100;
     }
 
-    /* Scrolling Project List */
     #project-list {
-      position: absolute;
-      bottom: 15px;
-      left: 0;
-      width: 100%;
-      height: 60px;
-      display: flex;
-      gap: 10px;
-      overflow-x: auto;
-      padding: 0 20px;
-      box-sizing: border-box;
-      z-index: 100;
-      align-items: center;
-      /* Hide scrollbar for cleaner UI */
-      -ms-overflow-style: none;
-      scrollbar-width: none;
+      position: absolute; bottom: 15px; left: 0; width: 100%; height: 60px;
+      display: flex; gap: 10px; overflow-x: auto; padding: 0 20px;
+      box-sizing: border-box; z-index: 100; align-items: center;
+      -ms-overflow-style: none; scrollbar-width: none;
     }
-    
-    #project-list::-webkit-scrollbar {
-      display: none;
-    }
+    #project-list::-webkit-scrollbar { display: none; }
 
     .project-btn {
-      flex-shrink: 0;
-      background-color: rgba(255, 255, 255, 0.2);
-      color: white;
-      border: 1px solid #fff;
-      padding: 10px 20px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-family: sans-serif;
-      font-size: 14px;
+      flex-shrink: 0; background-color: rgba(255, 255, 255, 0.2); color: white;
+      border: 1px solid #fff; padding: 10px 20px; border-radius: 8px;
+      cursor: pointer; font-family: sans-serif; font-size: 14px;
       transition: background-color 0.2s, color 0.2s;
     }
+    .project-btn.active { background-color: #fff; color: #000; font-weight: bold; }
 
-    .project-btn.active {
-      background-color: #fff;
-      color: #000;
-      font-weight: bold;
-    }
-
-    /* Custom AR UI Overlay Container */
     #ar-ui-container {
-      display: none; /* Hidden outside of AR */
-      position: absolute;
-      inset: 0;
-      z-index: 1000;
-      pointer-events: none; /* CRITICAL: Allows touches to pass through to the Exit AR button */
+      display: none; position: absolute; inset: 0; z-index: 1000; pointer-events: none;
     }
+    .ar-ui-layer { position: absolute; inset: 0; z-index: 20; pointer-events: none; }
 
-    /* UI Elements */
-    .ar-ui-layer {
-      position: absolute;
-      inset: 0;
-      z-index: 20;
-      pointer-events: none; /* Let touches pass through to buttons or model-viewer */
-    }
-
-    /* Calibration State UI */
     #instructions {
-      position: absolute;
-      top: 30px;
-      width: 100%;
-      text-align: center;
-      color: white;
-      font-family: sans-serif;
-      font-size: 16px;
-      line-height: 1.5;
-      text-shadow: 1px 1px 4px rgba(0,0,0,0.8);
-      pointer-events: none;
+      position: absolute; top: 30px; width: 100%; text-align: center; color: white;
+      font-family: sans-serif; font-size: 16px; line-height: 1.5;
+      text-shadow: 1px 1px 4px rgba(0,0,0,0.8); pointer-events: none;
     }
 
     #ghost-image {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 48vw; 
-      max-width: 240px;
-      opacity: 0.25;
-      border: 2px dashed #fff;
-      pointer-events: none;
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 48vw; max-width: 240px; opacity: 0.25; border: 2px dashed #fff; pointer-events: none;
     }
 
-    /* Version Display */
     #version-display {
-      position: absolute;
-      top: 15px;
-      left: 15px;
-      color: rgba(255, 255, 255, 0.5);
-      font-family: sans-serif;
-      font-size: 14px;
-      z-index: 9999;
-      pointer-events: none;
+      position: absolute; top: 15px; left: 15px; color: rgba(255, 255, 255, 0.5);
+      font-family: sans-serif; font-size: 14px; z-index: 9999; pointer-events: none;
     }
   </style>
 </head>
 <body>
 
-  <!-- 
-    bounds="tight": Explicitly matches geometry to reduce invisible offset gaps.
-    ar-scale="fixed": Forces strict 1:1 scale rendering (disables pinch-to-zoom).
-    ios-src: Automatically routes iOS users to AR Quick Look using RealityKit.
-  -->
+  <!-- Notice: ios-src has been removed. We handle iOS manually via JS now. -->
   <model-viewer
     id="exhibition-viewer"
     src="models/project1.glb"
-    ios-src="models/project1.reality"
     bounds="tight"
     ar
     ar-placement="wall"
@@ -164,13 +72,11 @@
     camera-controls
     alt="Digital Art 3D Model">
 
-    <!-- Version Marker -->
-    <div id="version-display">v1.7</div>
+    <div id="version-display">v1.8</div>
+    
+    <!-- We removed slot="ar-button" so we have total control over the click event -->
+    <button id="ar-button">Open in AR</button>
 
-    <!-- AR Launch Button -->
-    <button slot="ar-button" id="ar-button">Open in AR</button>
-
-    <!-- Custom AR DOM Overlay (Android WebXR only) -->
     <div id="ar-ui-container">
       <div id="calibration-state" class="ar-ui-layer">
         <div id="instructions">
@@ -180,13 +86,10 @@
         <img id="ghost-image" src="anchor.jpg" alt="Ghost Anchor">
       </div>
     </div>
-
   </model-viewer>
 
-  <!-- Horizontal Scrolling Project Menu (Sits in 2D space, ignored by WebXR overlay) -->
   <div id="project-list"></div>
 
-  <!-- Import latest model-viewer -->
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 
   <script>
@@ -195,8 +98,13 @@
     const ghostImage = document.getElementById('ghost-image');
     const instructions = document.getElementById('instructions');
     const projectList = document.getElementById('project-list');
+    const arButton = document.getElementById('ar-button');
     
     let ghostTimeout;
+    let currentProjectIndex = 1; // Track which project is currently selected
+
+    // Detect if the user is on an Apple device (iPhone or iPad)
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
     // Build the dynamic project menu (20 items)
     for (let i = 1; i <= 20; i++) {
@@ -204,18 +112,14 @@
       btn.className = 'project-btn';
       btn.innerText = `Project ${i}`;
       
-      // Default state: highlight the first project
-      if (i === 1) {
-        btn.classList.add('active');
-      }
+      if (i === 1) btn.classList.add('active');
 
-      // Event Listener: Swap 3D models when a button is clicked
       btn.addEventListener('click', () => {
-        // 1. Update the models
+        currentProjectIndex = i;
+        // Update Android/Web model
         viewer.setAttribute('src', `models/project${i}.glb`);
-        viewer.setAttribute('ios-src', `models/project${i}.reality`);
         
-        // 2. Update UI styling to show active selection
+        // Update UI styling
         document.querySelectorAll('.project-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
       });
@@ -223,25 +127,43 @@
       projectList.appendChild(btn);
     }
 
+    // Custom AR Button Logic
+    arButton.addEventListener('click', () => {
+      if (isIOS) {
+        // NATIVE iOS BYPASS: Force Safari to open the .reality file directly
+        const a = document.createElement('a');
+        a.setAttribute('rel', 'ar');
+        // Appending #allowsContentScaling=0 forces ARKit to lock the 38cm size
+        a.setAttribute('href', `models/project${currentProjectIndex}.reality#allowsContentScaling=0`);
+        
+        // Apple requires an image inside the anchor tag for Quick Look to trigger reliably
+        const img = document.createElement('img');
+        a.appendChild(img);
+        
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        // ANDROID: Trigger the standard <model-viewer> WebXR experience
+        viewer.activateAR();
+      }
+    });
+
     // Toggle AR UI visibility based on WebXR session status (Android only)
     viewer.addEventListener('ar-status', (event) => {
       if (event.detail.status === 'not-presenting') {
-        // Exited AR: Safely hide the custom UI and clear any pending timeouts
         arUiContainer.style.display = 'none';
         clearTimeout(ghostTimeout);
       } else if (event.detail.status === 'session-started') {
-        // Entered AR: Show the custom UI to guide scanning
         arUiContainer.style.display = 'block';
         ghostImage.style.display = 'block';
         instructions.style.display = 'block';
         
-        // Failsafe: Hide ghost image and instructions after 10 seconds if tracking fails
         ghostTimeout = setTimeout(() => {
           ghostImage.style.display = 'none';
           instructions.style.display = 'none';
         }, 10000);
       } else if (event.detail.status === 'object-placed') {
-        // AR Scene is Tracked: Wall found, model auto-anchored. Hide calibration UI.
         ghostImage.style.display = 'none';
         instructions.style.display = 'none';
         clearTimeout(ghostTimeout);
