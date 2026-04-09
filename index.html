@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>AR Digital Exhibition</title>
     
+    <!-- Import Google's <model-viewer> library -->
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
     
     <style>
@@ -18,6 +19,7 @@
             --poster-color: transparent; 
         }
 
+        /* 1. Launch Button outside of AR */
         #custom-ar-button {
             position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
             padding: 15px 30px; font-size: 18px; font-weight: bold;
@@ -25,40 +27,53 @@
             cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 10;
         }
 
-        /* The Main AR UI Overlay */
+        /* 2. The Main AR UI Overlay */
         #ar-ui-overlay {
             display: none; /* Hidden until AR opens */
             position: absolute; inset: 0;
-            pointer-events: none; /* Container lets taps pass through */
+            pointer-events: none; /* Container lets taps pass completely through */
             z-index: 5;
             flex-direction: column; justify-content: center; align-items: center;
         }
 
-        /* Top Left Retry Button */
+        /* 3. The Invisible Drag Shield */
+        #drag-shield {
+            position: absolute; inset: 0;
+            pointer-events: none; /* Inactive initially so you can place the model */
+            z-index: 1; /* Sits behind UI buttons */
+        }
+        #drag-shield.active {
+            /* Activates AFTER placement. Blocks the user from dragging the artwork! */
+            pointer-events: auto; 
+        }
+
+        /* 4. Top Left Retry Button */
         #retry-btn {
             position: absolute; top: 20px; left: 20px; z-index: 10;
             background-color: rgba(0, 0, 0, 0.7); color: white; border: 1px solid white;
             padding: 10px 15px; border-radius: 8px; font-size: 16px; font-weight: bold;
-            cursor: pointer; display: none; /* Hidden initially */
-            pointer-events: auto; /* Makes it tappable */
+            display: none; /* Hidden initially */
+            pointer-events: auto; /* Makes this specific button solid/tappable */
+            cursor: pointer;
         }
 
-        /* The Ghost Image Guide */
+        /* 5. The Ghost Image Guide */
         #ghost-image {
             width: 60vw; max-width: 300px; aspect-ratio: 1 / 1; object-fit: contain;
             opacity: 0.25; border: 2px dashed rgba(255, 255, 255, 0.6); border-radius: 4px;
-            pointer-events: none;
+            pointer-events: none; /* Tap goes through it */
         }
 
-        /* The Big "Place" Button */
+        /* 6. The Big "Place" Button (Hollow) */
         #place-btn {
             position: absolute; bottom: 50px; z-index: 10;
             background-color: #28a745; color: white;
             padding: 20px 40px; font-size: 22px; font-weight: bold;
             border-radius: 50px; text-transform: uppercase;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5); border: 2px solid white;
-            pointer-events: auto; /* Makes it tappable */
-            cursor: pointer;
+            display: flex; justify-content: center; align-items: center;
+            /* CRUCIAL: Makes the tap fall completely through the button to hit WebXR! */
+            pointer-events: none; 
         }
 
         /* Instructions Text Box */
@@ -73,8 +88,8 @@
 <body>
 
     <!-- 
-      No more scale hacks! The model runs pure natively.
-      ar-placement="wall" forces it to look for vertical surfaces.
+      ar-scale="fixed" IS REMOVED! This allows our JS to scale the model up.
+      scale="0.001 0.001 0.001" makes it invisible during aiming.
     -->
     <model-viewer 
         id="exhibition-model"
@@ -82,27 +97,26 @@
         ar 
         ar-modes="webxr scene-viewer quick-look" 
         ar-placement="wall" 
-        ar-scale="fixed"
+        scale="0.001 0.001 0.001" 
         disable-zoom
         disable-pan
         shadow-intensity="1">
         
         <button slot="ar-button" id="custom-ar-button">Open in AR</button>
 
-        <!-- Our Custom AR UI Overlay -->
         <div id="ar-ui-overlay">
             
+            <div id="drag-shield"></div>
+
             <button id="retry-btn">↺ Retry Alignment</button>
 
             <div id="instructions">
-                <strong>1. Scan the wall side-to-side</strong> until the white tracking circle appears.<br><br>
-                <strong>2. Aim this ghost image</strong> over the real poster.<br><br>
-                <strong>3. Tap the green button!</strong>
+                Aim the ghost image at the poster on the wall, then tap the green button!
             </div>
 
             <img id="ghost-image" src="anchor.jpg" alt="Ghost Anchor">
 
-            <button id="place-btn">Place the model</button>
+            <div id="place-btn">Place the model</div>
             
         </div>
 
@@ -111,6 +125,7 @@
     <script>
         const viewer = document.getElementById('exhibition-model');
         const arUiOverlay = document.getElementById('ar-ui-overlay');
+        const dragShield = document.getElementById('drag-shield');
         const ghostImage = document.getElementById('ghost-image');
         const placeBtn = document.getElementById('place-btn');
         const retryBtn = document.getElementById('retry-btn');
@@ -121,28 +136,45 @@
         // UI Helper: Sets screen to "Aiming" Phase
         function setAimingMode() {
             isPlaced = false;
-            placeBtn.style.display = 'block';
-            retryBtn.style.display = 'none';
+            
+            // Revert model to microscopic
+            viewer.setAttribute('scale', '0.001 0.001 0.001'); 
+            
+            // Show Aiming UI
+            placeBtn.style.display = 'flex';
             ghostImage.style.display = 'block';
-            instructions.innerHTML = "<strong>1. Scan the wall side-to-side</strong> until the white tracking circle appears.<br><br><strong>2. Aim this ghost image</strong> over the real poster.<br><br><strong>3. Tap the green button!</strong>";
+            retryBtn.style.display = 'none';
+            
+            // Deactivate the shield so the tap can go through
+            dragShield.classList.remove('active'); 
+            
+            instructions.innerText = "Aim the ghost image at the poster on the wall, then tap the green button!";
             instructions.style.opacity = "1";
         }
 
         // UI Helper: Sets screen to "Locked" Phase
         function setLockedMode() {
             isPlaced = true;
+            
+            // Pop model to True Scale (1:1)
+            viewer.setAttribute('scale', '1 1 1'); 
+            
+            // Hide Aiming UI
             placeBtn.style.display = 'none';
-            retryBtn.style.display = 'block';
             ghostImage.style.display = 'none';
+            retryBtn.style.display = 'block';
+            
+            // Activate the drag shield! Blocks the user from accidentally dragging the art
+            dragShield.classList.add('active'); 
+            
             instructions.innerHTML = "<strong>Artwork Placed!</strong><br>You can now walk around the exhibition.";
             
-            // Fade out instructions after 4 seconds
             setTimeout(() => {
                 if (isPlaced) instructions.style.opacity = "0";
-            }, 4000);
+            }, 3000);
         }
 
-        // 1. Detect when AR actually starts
+        // 1. Detect when AR starts
         viewer.addEventListener('ar-status', (event) => {
             if (event.detail.status === 'session-started') {
                 arUiOverlay.style.display = 'flex';
@@ -152,29 +184,30 @@
             }
         });
 
-        // 2. THE WEBXR MAGIC EVENT: This fires the millisecond a tap occurs in AR.
-        viewer.addEventListener('beforexrselect', (ev) => {
-            // If the model is ALREADY placed, we tell WebXR to cancel the tap.
-            // This prevents the user from accidentally dragging/moving the artwork!
-            if (isPlaced) {
-                ev.preventDefault();
+        // 2. The Main Placement Tap Logic
+        viewer.addEventListener('pointerdown', (event) => {
+            // Because the "Place" button has pointer-events:none, touching the 
+            // button physically clicks the <model-viewer> canvas instead, triggering this!
+            if (viewer.hasAttribute('ar-status') && 
+                viewer.getAttribute('ar-status') !== 'not-presenting' && 
+                !isPlaced) {
+                
+                // Allow a tiny 50ms delay so WebXR's native system places the object FIRST
+                setTimeout(() => {
+                    setLockedMode();
+                }, 50);
             }
-            // If it is NOT placed yet, we do nothing. The tap passes directly to WebXR
-            // and the native system beautifully snaps the artwork to the wall.
         });
 
-        // 3. The Big Place Button
-        placeBtn.addEventListener('click', () => {
-            // Because we didn't block the `beforexrselect` event yet, the artwork 
-            // is snapping to the wall behind the scenes exactly at this moment.
-            setLockedMode();
-        });
-
-        // 4. The Retry Button
-        retryBtn.addEventListener('click', () => {
-            // Resets UI to aiming mode. The next time they press "Place", 
-            // the model will instantly teleport from its old location to the new alignment.
+        // 3. The Retry Button Logic
+        retryBtn.addEventListener('click', (event) => {
+            event.stopPropagation(); // Prevents click from accidentally placing the model immediately
             setAimingMode();
+        });
+        
+        // Block pointerdown on Retry Button from reaching the AR canvas
+        retryBtn.addEventListener('pointerdown', (event) => {
+            event.stopPropagation();
         });
 
     </script>
