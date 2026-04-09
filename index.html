@@ -1,217 +1,219 @@
+<!-- Version: 1.0 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AR Digital Exhibition</title>
-    
-    <!-- Import Google's <model-viewer> library -->
-    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
-    
-    <style>
-        body, html {
-            margin: 0; padding: 0; width: 100vw; height: 100vh;
-            background-color: #111; font-family: sans-serif; overflow: hidden;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Digital Art Exhibition AR</title>
+  <style>
+    /* Reset and ensure full screen */
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #111;
+    }
 
-        model-viewer {
-            width: 100%; height: 100%;
-            --poster-color: transparent; 
-        }
+    model-viewer {
+      width: 100%;
+      height: 100%;
+    }
 
-        /* 1. Launch Button outside of AR */
-        #custom-ar-button {
-            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
-            padding: 15px 30px; font-size: 18px; font-weight: bold;
-            color: white; background-color: #007bff; border: none; border-radius: 8px;
-            cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 10;
-        }
+    /* Standard HTML Button to launch AR */
+    #ar-button {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #fff;
+      color: #000;
+      padding: 15px 30px;
+      font-size: 18px;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      z-index: 100;
+    }
 
-        /* 2. The Main AR UI Overlay */
-        #ar-ui-overlay {
-            display: none; /* Hidden until AR opens */
-            position: absolute; inset: 0;
-            pointer-events: none; /* Container lets taps pass completely through */
-            z-index: 5;
-            flex-direction: column; justify-content: center; align-items: center;
-        }
+    /* Custom AR UI Overlay Container */
+    #ar-ui-container {
+      display: none; /* Hidden outside of AR */
+      position: absolute;
+      inset: 0;
+      z-index: 1000;
+    }
 
-        /* 3. The Invisible Drag Shield */
-        #drag-shield {
-            position: absolute; inset: 0;
-            pointer-events: none; /* Inactive initially so you can place the model */
-            z-index: 1; 
-        }
-        #drag-shield.active {
-            /* Activates AFTER placement. Blocks the user from dragging the artwork! */
-            pointer-events: auto; 
-        }
+    /* Invisible layer to block default drag/rotate gestures */
+    #interaction-blocker {
+      position: absolute;
+      inset: 0;
+      pointer-events: auto; /* Absorbs touch events */
+      z-index: 10;
+    }
 
-        /* 4. Top Left Retry Button */
-        #retry-btn {
-            position: absolute; top: 20px; left: 20px; z-index: 10;
-            background-color: rgba(0, 0, 0, 0.7); color: white; border: 1px solid white;
-            padding: 10px 15px; border-radius: 8px; font-size: 16px; font-weight: bold;
-            display: none; 
-            pointer-events: auto; /* Makes this specific button solid/tappable */
-            cursor: pointer;
-        }
+    /* UI Elements sit above the blocker */
+    .ar-ui-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      pointer-events: none; /* Let touches pass through to blocker or buttons */
+    }
 
-        /* 5. The Ghost Image Target (Now pulses to indicate it's a button!) */
-        @keyframes pulse-ghost {
-            0% { transform: scale(1); opacity: 0.3; }
-            50% { transform: scale(1.05); opacity: 0.6; }
-            100% { transform: scale(1); opacity: 0.3; }
-        }
+    /* Calibration State UI */
+    #instructions {
+      position: absolute;
+      top: 30px;
+      width: 100%;
+      text-align: center;
+      color: white;
+      font-family: sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+      text-shadow: 1px 1px 4px rgba(0,0,0,0.8);
+    }
 
-        #ghost-image {
-            width: 60vw; max-width: 300px; aspect-ratio: 1 / 1; object-fit: contain;
-            border: 3px dashed rgba(255, 255, 255, 0.8); border-radius: 8px;
-            /* CRUCIAL: Tap goes straight through the image and hits the AR wall behind it */
-            pointer-events: none; 
-            animation: pulse-ghost 2s infinite ease-in-out;
-        }
+    #ghost-image {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 60vw; /* Adjust based on poster aspect ratio */
+      max-width: 300px;
+      opacity: 0.25;
+      border: 2px dashed #fff;
+      pointer-events: none;
+    }
 
-        /* Instructions Text Box */
-        #instructions {
-            position: absolute; top: 10%; background: rgba(0, 0, 0, 0.8);
-            color: white; padding: 15px 20px; border-radius: 8px;
-            text-align: center; font-size: 18px; width: 85%; max-width: 350px;
-            line-height: 1.4; pointer-events: none; border: 1px solid #444;
-        }
+    #place-button {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #28a745;
+      color: white;
+      padding: 15px 30px;
+      font-size: 18px;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      pointer-events: auto; /* Make clickable */
+    }
 
-        .highlight-text {
-            color: #28a745;
-            font-weight: bold;
-            font-size: 22px;
-            display: block;
-            margin-top: 10px;
-        }
-    </style>
+    /* Placed State UI */
+    #retry-button {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background-color: rgba(0, 0, 0, 0.6);
+      color: white;
+      padding: 10px 15px;
+      font-size: 14px;
+      border: 1px solid #fff;
+      border-radius: 4px;
+      pointer-events: auto; /* Make clickable */
+    }
+  </style>
 </head>
 <body>
 
-    <!-- 
-      ar-scale="fixed" is removed so we can control scale.
-      scale="0.001" hides the model during aiming, as requested.
-    -->
-    <model-viewer 
-        id="exhibition-model"
-        src="models/project1.glb"
-        ar 
-        ar-modes="webxr scene-viewer quick-look" 
-        ar-placement="wall" 
-        scale="0.001 0.001 0.001" 
-        disable-zoom
-        disable-pan
-        shadow-intensity="1">
-        
-        <button slot="ar-button" id="custom-ar-button">Open in AR</button>
+  <!-- 
+    ar-placement="wall" forces the hit-test against vertical surfaces.
+    ar-scale="fixed" explicitly disables pinch-to-scale behavior.
+  -->
+  <model-viewer
+    id="exhibition-viewer"
+    src="models/project1.glb"
+    ar
+    ar-placement="wall"
+    ar-scale="fixed"
+    camera-controls
+    alt="Digital Art 3D Model">
 
-        <div id="ar-ui-overlay">
-            
-            <div id="drag-shield"></div>
+    <!-- AR Launch Button -->
+    <button slot="ar-button" id="ar-button">Open in AR</button>
 
-            <button id="retry-btn">↺ Retry Alignment</button>
+    <!-- Custom AR DOM Overlay -->
+    <div id="ar-ui-container">
+      <div id="interaction-blocker"></div>
 
-            <div id="instructions">
-                Aim this ghost image at the poster on the wall, then 
-                <span class="highlight-text">TAP THE IMAGE</span>
-            </div>
-
-            <!-- The Ghost Image is now the target the user is instructed to tap -->
-            <img id="ghost-image" src="anchor.jpg" alt="Ghost Anchor">
-            
+      <!-- State 1: Calibration -->
+      <div id="calibration-state" class="ar-ui-layer">
+        <div id="instructions">
+          1. Scan the wall.<br>
+          2. Aim this ghost image at the real poster.<br>
+          3. Tap the green button!
         </div>
+        <img id="ghost-image" src="anchor.jpg" alt="Ghost Anchor">
+        <button id="place-button">Place the model</button>
+      </div>
 
-    </model-viewer>
+      <!-- State 2: Model Placed -->
+      <div id="placed-state" class="ar-ui-layer" style="display: none;">
+        <button id="retry-button">Retry Alignment</button>
+      </div>
+    </div>
 
-    <script>
-        const viewer = document.getElementById('exhibition-model');
-        const arUiOverlay = document.getElementById('ar-ui-overlay');
-        const dragShield = document.getElementById('drag-shield');
-        const ghostImage = document.getElementById('ghost-image');
-        const retryBtn = document.getElementById('retry-btn');
-        const instructions = document.getElementById('instructions');
-        
-        let isPlaced = false;
+  </model-viewer>
 
-        // UI Helper: Sets screen to "Aiming" Phase
-        function setAimingMode() {
-            isPlaced = false;
-            
-            // Revert model to microscopic
-            viewer.setAttribute('scale', '0.001 0.001 0.001'); 
-            
-            // Show Aiming UI
-            ghostImage.style.display = 'block';
-            retryBtn.style.display = 'none';
-            
-            // Deactivate the shield so the tap can go through
-            dragShield.classList.remove('active'); 
-            
-            instructions.innerHTML = "Aim this ghost image at the poster on the wall, then <span class='highlight-text'>TAP THE IMAGE</span>";
-            instructions.style.opacity = "1";
-        }
+  <!-- Import latest model-viewer -->
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 
-        // UI Helper: Sets screen to "Locked" Phase
-        function setLockedMode() {
-            isPlaced = true;
-            
-            // Pop model to True Scale (1:1)
-            viewer.setAttribute('scale', '1 1 1'); 
-            
-            // Hide Aiming UI
-            ghostImage.style.display = 'none';
-            retryBtn.style.display = 'block';
-            
-            // Activate the drag shield! Blocks the user from dragging the art
-            dragShield.classList.add('active'); 
-            
-            instructions.innerHTML = "<strong>Artwork Placed!</strong><br>You can now walk around the exhibition.";
-            
-            setTimeout(() => {
-                if (isPlaced) instructions.style.opacity = "0";
-            }, 3500);
-        }
+  <script>
+    const viewer = document.getElementById('exhibition-viewer');
+    const arUiContainer = document.getElementById('ar-ui-container');
+    const calibrationState = document.getElementById('calibration-state');
+    const placedState = document.getElementById('placed-state');
+    const placeButton = document.getElementById('place-button');
+    const retryButton = document.getElementById('retry-button');
+    const blocker = document.getElementById('interaction-blocker');
 
-        // 1. Detect when AR starts
-        viewer.addEventListener('ar-status', (event) => {
-            if (event.detail.status === 'session-started') {
-                arUiOverlay.style.display = 'flex';
-                setAimingMode();
-            } else if (event.detail.status === 'not-presenting') {
-                arUiOverlay.style.display = 'none';
-            }
-        });
+    // Toggle AR UI visibility based on WebXR session status
+    viewer.addEventListener('ar-status', (event) => {
+      if (event.detail.status === 'session-started') {
+        arUiContainer.style.display = 'block';
+      } else {
+        arUiContainer.style.display = 'none';
+        // Reset state upon exiting AR
+        placedState.style.display = 'none';
+        calibrationState.style.display = 'block';
+        blocker.style.pointerEvents = 'auto';
+      }
+    });
 
-        // 2. The Main Placement Tap Logic
-        viewer.addEventListener('pointerdown', (event) => {
-            // By tapping the center ghost image, the AR Laser shoots dead-center 
-            // from the camera and perfectly hits the wall behind the poster.
-            if (viewer.hasAttribute('ar-status') && 
-                viewer.getAttribute('ar-status') !== 'not-presenting' && 
-                !isPlaced) {
-                
-                // Allow a tiny 50ms delay so WebXR natively places the microscopic object FIRST
-                setTimeout(() => {
-                    setLockedMode(); // Then we instantly scale it up and lock the screen!
-                }, 50);
-            }
-        });
+    placeButton.addEventListener('click', () => {
+      // 1. Swap UI states
+      calibrationState.style.display = 'none';
+      placedState.style.display = 'block';
 
-        // 3. The Retry Button Logic
-        retryBtn.addEventListener('click', (event) => {
-            event.stopPropagation(); // Prevents click from accidentally firing a placement tap
-            setAimingMode();
-        });
-        
-        // Block pointerdown on Retry Button from reaching the AR canvas
-        retryBtn.addEventListener('pointerdown', (event) => {
-            event.stopPropagation();
-        });
+      // 2. Drop the interaction blocker momentarily to allow placement
+      blocker.style.pointerEvents = 'none';
 
-    </script>
+      // 3. Calculate exact center of the screen (where ghost image is)
+      const centerX = window.innerWidth / 2;
+      const centerY = window.innerHeight / 2;
 
+      // 4. Dispatch synthetic pointer events to trigger <model-viewer> hit-test
+      const pointerDown = new PointerEvent('pointerdown', { clientX: centerX, clientY: centerY, bubbles: true });
+      const pointerUp = new PointerEvent('pointerup', { clientX: centerX, clientY: centerY, bubbles: true });
+      
+      viewer.dispatchEvent(pointerDown);
+      viewer.dispatchEvent(pointerUp);
+
+      // 5. Restore interaction blocker to freeze the model's position
+      // Timeout ensures the event loop processes the placement click first
+      setTimeout(() => {
+        blocker.style.pointerEvents = 'auto';
+      }, 50);
+    });
+
+    retryButton.addEventListener('click', () => {
+      // Revert UI to allow re-calibration
+      placedState.style.display = 'none';
+      calibrationState.style.display = 'block';
+    });
+  </script>
 </body>
 </html>
