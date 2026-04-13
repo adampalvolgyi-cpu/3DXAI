@@ -1,22 +1,13 @@
-<!-- 
-  Version History:
-  Version: 1.0 - Initial setup with DOM Overlay, state segregation, and synthetic click hit-testing.
-  Version: 1.1 - Removed interaction blocker to re-enable native WebXR touch gestures.
-  Version: 1.2 - Added persistent version display element to the DOM.
-  Version: 1.3 - Fixed Exit AR pointer blocking, added bounds="tight", implemented 0.0001 scale pre-hiding.
-  Version: 1.4 - Fixed premature UI teardown exclusively to 'not-presenting' state.
-  Version: 1.5 - Reverted to auto-anchoring, removed manual placement buttons, added auto-hide logic for ghost anchor.
-  Version: 1.6 - Shrunk ghost image by 20%, added ios-src attribute for RealityKit fallback.
-  Version: 1.7 - Reverted parallax instructions, added dynamic horizontal scroll menu for 20 projects.
-  Version: 1.8 - Attempted JS native bypass for iOS MIME types (Failed).
-  Version: 1.9 - Attempted dual-button DOM separation for Safari User Gesture rules (Failed).
-  Version: 1.10 - Reverted to v1.7. Removed scale hashes. Implemented Absolute URL resolution to fix Safari ARQL pathing bug.
-  Version: 1.11 - Removed Absolute URL logic. Implemented Async Fetch & Blob Forgery to manually enforce Apple MIME types.
-  Version: 1.12 - Appended developer credit to version. Added interactive GPU-accelerated blurred blob background.
-  Version: 1.13 - Swapped CSS blur for SVG Gaussian filter to fix Webkit dimming bug. Added desktop-responsive blob caps.
-  Version: 1.14 - Abandoned DOM filters. Implemented HTML5 Canvas API for guaranteed cross-device vibrant blur rendering.
-  Version: 1.15 - Reverted background to static v1.11 state, removed Canvas/Blob animation logic, retained developer credit.
-  Version: 1.16 - Updated title/credits. Added desktop CSS media queries, REST API QR pop-up, and iOS Chrome/Safari branching logic.
+<!-- Version: 1.17 -->
+<!-- Changelog:
+  - Re-introduced scale-hiding logic (0.0001 during scan, 1.0 during placement) to prevent model clipping before anchor detection.
+  - Shrunk ghost image CSS boundaries by an additional 30% to maximize WebXR camera tracking space.
+  - Repositioned version credit to the absolute bottom center. Reduced font-size to 10px.
+  - Injected logo.png in the top-left corner.
+  - Added Hamburger Menu with modal toggling.
+  - Implemented Deep Linking (?p=X) using history.replaceState for precise project sharing.
+  - Integrated navigator.clipboard (Copy Link) and navigator.share (Native OS Sharing) APIs.
+  - Converted the desktop QR popup into a permanent display fixture via CSS Media Queries. Removed desktop AR button.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -32,6 +23,40 @@
 
     model-viewer { width: 100%; height: 100%; }
 
+    /* Top Left Logo */
+    #logo {
+      position: absolute; top: 20px; left: 20px;
+      max-height: 40px; z-index: 100; pointer-events: none;
+    }
+
+    /* Top Right Hamburger Menu */
+    #menu-btn {
+      position: absolute; top: 20px; right: 20px;
+      background: transparent; border: none; cursor: pointer;
+      z-index: 101; fill: white; padding: 5px;
+    }
+
+    /* Pop-up Menu Modal */
+    #menu-popup {
+      display: none; position: absolute; top: 60px; right: 20px;
+      background: white; border-radius: 8px; padding: 15px;
+      width: 260px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+      z-index: 1000; font-family: sans-serif; font-size: 13px; color: #333;
+    }
+    #menu-popup button {
+      display: block; width: 100%; padding: 10px; margin-bottom: 8px;
+      border: 1px solid #ccc; background: #f9f9f9; border-radius: 6px;
+      cursor: pointer; font-weight: bold; font-size: 14px; transition: background 0.2s;
+    }
+    #menu-popup button:active { background: #e0e0e0; }
+    #menu-popup a { color: #0066cc; text-decoration: none; }
+    #menu-popup .credits {
+      margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; line-height: 1.5;
+    }
+    #menu-qr-image {
+      display: none; width: 100%; margin-top: 10px; border-radius: 4px;
+    }
+
     #ar-button {
       position: absolute; bottom: 100px; left: 50%;
       transform: translateX(-50%); background-color: #fff;
@@ -40,13 +65,10 @@
       cursor: pointer; z-index: 100;
       transition: background-color 0.3s, opacity 0.3s;
     }
-    
-    #ar-button.loading {
-      opacity: 0.5; pointer-events: none;
-    }
+    #ar-button.loading { opacity: 0.5; pointer-events: none; }
 
     #project-list {
-      position: absolute; bottom: 15px; left: 0; width: 100%; height: 60px;
+      position: absolute; bottom: 25px; left: 0; width: 100%; height: 60px;
       display: flex; gap: 10px; overflow-x: auto; padding: 0 20px;
       box-sizing: border-box; z-index: 100; align-items: center;
       -ms-overflow-style: none; scrollbar-width: none;
@@ -76,41 +98,59 @@
 
     #ghost-image {
       position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      width: 48vw; max-width: 240px; opacity: 0.25; border: 2px dashed #fff; pointer-events: none;
+      width: 33.6vw; /* Reduced exactly 30% from 48vw */
+      max-width: 168px; /* Reduced exactly 30% from 240px */
+      opacity: 0.25; border: 2px dashed #fff; pointer-events: none;
     }
 
     #version-display {
-      position: absolute; top: 15px; left: 15px; color: rgba(255, 255, 255, 0.5);
-      font-family: sans-serif; font-size: 10px; z-index: 9999; pointer-events: none;
+      position: absolute; bottom: 5px; left: 0; width: 100%; text-align: center;
+      color: rgba(255, 255, 255, 0.5); font-family: sans-serif; font-size: 10px; 
+      z-index: 9999; pointer-events: none;
     }
 
-    /* Desktop QR Pop-up container (hidden by default) */
-    #qr-popup {
-      display: none; position: absolute; background: #fff;
-      padding: 15px; border-radius: 8px; text-align: center;
-      z-index: 1000; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-    }
-    #close-qr {
-      margin-top: 10px; font-family: sans-serif; font-size: 14px;
-      color: #ff3b30; cursor: pointer; font-weight: bold;
-    }
+    #desktop-qr-container { display: none; }
 
     /* Desktop-Exclusive CSS Constraints */
     @media (hover: hover) and (pointer: fine) {
-      #ar-button {
-        left: auto;
-        transform: none;
-        right: 30px;
-        bottom: 100px;
+      #ar-button { display: none !important; }
+      #desktop-qr-container {
+        display: block; position: absolute; right: 30px; bottom: 100px;
+        background: white; padding: 15px; border-radius: 12px;
+        text-align: center; z-index: 100; font-family: sans-serif;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
       }
-      #qr-popup {
-        right: 30px;
-        bottom: 160px; /* Positions pop-up directly above the button */
-      }
+      #desktop-qr-container p { margin: 0 0 10px 0; font-weight: bold; font-size: 18px; color: #000; }
+      #desktop-qr-image { width: 300px; height: 300px; display: block; }
     }
   </style>
 </head>
 <body>
+
+  <img id="logo" src="logo.png" alt="AI_X Logo">
+
+  <button id="menu-btn" aria-label="Menu">
+    <svg viewBox="0 0 24 24" width="30" height="30">
+      <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+    </svg>
+  </button>
+
+  <div id="menu-popup">
+    <button id="copy-link-btn">Copy Link</button>
+    <button id="menu-qr-btn">Show QR Code</button>
+    <img id="menu-qr-image" src="" alt="Project QR Code">
+    <button id="share-btn">Share</button>
+    
+    <div class="credits">
+      <strong>Ádám Pálvölgyi</strong><br>
+      email: <a href="mailto:adampalvolgyi@gmail.com">adampalvolgyi@gmail.com</a><br>
+      instagram: <a href="https://instagram.com/adampalvolgyi" target="_blank">@adampalvolgyi</a><br><br>
+      
+      <strong>Exploratív Építészeti Tanszék</strong><br>
+      <a href="https://www.explorativ.bme.hu/" target="_blank">https://www.explorativ.bme.hu/</a><br>
+      insta: <a href="https://instagram.com/explorativ_bme" target="_blank">@explorativ_bme</a>
+    </div>
+  </div>
 
   <model-viewer
     id="exhibition-viewer"
@@ -121,7 +161,7 @@
     camera-controls
     alt="Digital Art 3D Model">
 
-    <div id="version-display">v1.16 | developed by Ádám Pálvölgyi</div>
+    <div id="version-display">v1.17 | developed by Ádám Pálvölgyi</div>
 
     <button slot="ar-button" id="ar-button">Open in AR</button>
 
@@ -137,13 +177,12 @@
 
   </model-viewer>
 
-  <div id="project-list"></div>
-
-  <!-- QR Code Modal -->
-  <div id="qr-popup">
-    <img id="qr-image" src="" alt="Scan this QR Code with your phone" width="150" height="150">
-    <div id="close-qr">Close</div>
+  <div id="desktop-qr-container">
+    <p>View in AR</p>
+    <img id="desktop-qr-image" src="" alt="Scan this QR Code with your phone">
   </div>
+
+  <div id="project-list"></div>
 
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 
@@ -154,47 +193,95 @@
     const instructions = document.getElementById('instructions');
     const projectList = document.getElementById('project-list');
     const arButton = document.getElementById('ar-button');
-    const qrPopup = document.getElementById('qr-popup');
-    const qrImage = document.getElementById('qr-image');
-    const closeQr = document.getElementById('close-qr');
+    const desktopQrImage = document.getElementById('desktop-qr-image');
     
+    // Menu DOM Elements
+    const menuBtn = document.getElementById('menu-btn');
+    const menuPopup = document.getElementById('menu-popup');
+    const copyLinkBtn = document.getElementById('copy-link-btn');
+    const menuQrBtn = document.getElementById('menu-qr-btn');
+    const menuQrImage = document.getElementById('menu-qr-image');
+    const shareBtn = document.getElementById('share-btn');
+
     let ghostTimeout;
     let currentBlobUrl = null;
 
-    // Hardware Detection Logic
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const isChromeIOS = isIOS && /CriOS/.test(navigator.userAgent);
     const isDesktop = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
-    // Desktop Architecture Override: Decouple button from model-viewer
-    if (isDesktop) {
-      arButton.removeAttribute('slot');
-      arButton.innerText = "View on Mobile";
-      
-      arButton.addEventListener('click', () => {
-        // Construct the QR Code URL dynamically using the current webpage URL
-        if (!qrImage.getAttribute('src')) {
-          const currentUrl = encodeURIComponent(window.location.href);
-          qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${currentUrl}`;
-        }
-        qrPopup.style.display = 'block';
-      });
+    // Read URL Parameters for Deep Linking
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialProject = parseInt(urlParams.get('p')) || 1;
 
-      closeQr.addEventListener('click', () => {
-        qrPopup.style.display = 'none';
-      });
-    }
+    // Toggle Hamburger Menu
+    menuBtn.addEventListener('click', () => {
+      menuPopup.style.display = (menuPopup.style.display === 'block') ? 'none' : 'block';
+    });
+
+    // Copy Link Logic
+    copyLinkBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        copyLinkBtn.innerText = "Link copied!";
+        setTimeout(() => copyLinkBtn.innerText = "Copy Link", 2000);
+      } catch (err) {
+        console.error('Failed to copy: ', err);
+      }
+    });
+
+    // Mobile Menu QR Toggle
+    menuQrBtn.addEventListener('click', () => {
+      if (menuQrImage.style.display === 'block') {
+        menuQrImage.style.display = 'none';
+        menuQrBtn.innerText = "Show QR Code";
+      } else {
+        const currentUrl = encodeURIComponent(window.location.href);
+        menuQrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${currentUrl}`;
+        menuQrImage.style.display = 'block';
+        menuQrBtn.innerText = "Hide QR Code";
+      }
+    });
+
+    // Native Share API Logic
+    shareBtn.addEventListener('click', async () => {
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: 'AI_X AR Exhibition',
+            url: window.location.href
+          });
+        } catch (err) {
+          console.error('Error sharing:', err);
+        }
+      } else {
+        alert("Native sharing is not supported on this browser. Please use Copy Link.");
+      }
+    });
 
     // Asynchronous loading function
     async function loadProject(index) {
+      // Deep Linking: Update browser URL without reloading
+      history.replaceState(null, '', '?p=' + index);
+
+      // Update Desktop QR Code payload automatically
+      if (isDesktop) {
+        const currentUrl = encodeURIComponent(window.location.href);
+        desktopQrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${currentUrl}`;
+      }
+
+      // Update internal Menu QR if it's currently open
+      if (menuQrImage.style.display === 'block') {
+        const currentUrl = encodeURIComponent(window.location.href);
+        menuQrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${currentUrl}`;
+      }
+
       viewer.setAttribute('src', `models/project${index}.glb`);
 
       if (isIOS) {
         if (isChromeIOS) {
-          // Chrome iOS natively supports MIME-sniffing. Bypass the Blob forgery.
           viewer.setAttribute('ios-src', `models/project${index}.reality`);
         } else {
-          // Safari requires the Blob forgery to bypass MIME security blocks.
           try {
             arButton.classList.add('loading');
             arButton.innerText = "Loading AR...";
@@ -236,19 +323,24 @@
       projectList.appendChild(btn);
     }
 
-    // Initialize the first project on boot
-    projectList.children[0].classList.add('active');
-    loadProject(1);
+    // Initialize the selected project on boot
+    const targetBtn = projectList.children[initialProject - 1];
+    if (targetBtn) targetBtn.classList.add('active');
+    loadProject(initialProject);
 
     // WebXR UI Logic (Android Only)
     viewer.addEventListener('ar-status', (event) => {
       if (event.detail.status === 'not-presenting') {
         arUiContainer.style.display = 'none';
+        viewer.setAttribute('scale', '1 1 1'); // Ensure scale resets safely
         clearTimeout(ghostTimeout);
       } else if (event.detail.status === 'session-started') {
         arUiContainer.style.display = 'block';
         ghostImage.style.display = 'block';
         instructions.style.display = 'block';
+        
+        // Hide model visually during spatial scanning
+        viewer.setAttribute('scale', '0.0001 0.0001 0.0001');
         
         ghostTimeout = setTimeout(() => {
           ghostImage.style.display = 'none';
@@ -257,6 +349,9 @@
       } else if (event.detail.status === 'object-placed') {
         ghostImage.style.display = 'none';
         instructions.style.display = 'none';
+        
+        // Restore scale to display the tracked model
+        viewer.setAttribute('scale', '1 1 1');
         clearTimeout(ghostTimeout);
       }
     });
