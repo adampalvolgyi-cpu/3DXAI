@@ -11,6 +11,7 @@
   Version: 1.8 - Attempted JS native bypass for iOS MIME types (Failed).
   Version: 1.9 - Attempted dual-button DOM separation for Safari User Gesture rules (Failed).
   Version: 1.10 - Reverted to v1.7. Removed scale hashes. Implemented Absolute URL resolution to fix Safari ARQL pathing bug.
+  Version: 1.11 - Removed Absolute URL logic. Implemented Async Fetch & Blob Forgery to manually enforce Apple MIME types.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -19,132 +20,64 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Digital Art Exhibition AR</title>
   <style>
-    /* Reset and ensure full screen */
     body, html {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background-color: #111;
+      margin: 0; padding: 0; width: 100%; height: 100%;
+      overflow: hidden; background-color: #111;
     }
 
-    model-viewer {
-      width: 100%;
-      height: 100%;
-    }
+    model-viewer { width: 100%; height: 100%; }
 
-    /* Standard HTML Button to launch AR */
     #ar-button {
-      position: absolute;
-      bottom: 100px;
-      left: 50%;
-      transform: translateX(-50%);
-      background-color: #fff;
-      color: #000;
-      padding: 15px 30px;
-      font-size: 18px;
-      font-weight: bold;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      z-index: 100;
-    }
-
-    /* Scrolling Project List */
-    #project-list {
-      position: absolute;
-      bottom: 15px;
-      left: 0;
-      width: 100%;
-      height: 60px;
-      display: flex;
-      gap: 10px;
-      overflow-x: auto;
-      padding: 0 20px;
-      box-sizing: border-box;
-      z-index: 100;
-      align-items: center;
-      -ms-overflow-style: none;
-      scrollbar-width: none;
+      position: absolute; bottom: 100px; left: 50%;
+      transform: translateX(-50%); background-color: #fff;
+      color: #000; padding: 15px 30px; font-size: 18px;
+      font-weight: bold; border: none; border-radius: 8px;
+      cursor: pointer; z-index: 100;
+      transition: background-color 0.3s, opacity 0.3s;
     }
     
-    #project-list::-webkit-scrollbar {
-      display: none;
+    /* Disabled state for AR button while downloading */
+    #ar-button.loading {
+      opacity: 0.5; pointer-events: none;
     }
+
+    #project-list {
+      position: absolute; bottom: 15px; left: 0; width: 100%; height: 60px;
+      display: flex; gap: 10px; overflow-x: auto; padding: 0 20px;
+      box-sizing: border-box; z-index: 100; align-items: center;
+      -ms-overflow-style: none; scrollbar-width: none;
+    }
+    #project-list::-webkit-scrollbar { display: none; }
 
     .project-btn {
-      flex-shrink: 0;
-      background-color: rgba(255, 255, 255, 0.2);
-      color: white;
-      border: 1px solid #fff;
-      padding: 10px 20px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-family: sans-serif;
-      font-size: 14px;
-      transition: background-color 0.2s, color 0.2s;
+      flex-shrink: 0; background-color: rgba(255, 255, 255, 0.2);
+      color: white; border: 1px solid #fff; padding: 10px 20px;
+      border-radius: 8px; cursor: pointer; font-family: sans-serif;
+      font-size: 14px; transition: background-color 0.2s, color 0.2s;
     }
-
     .project-btn.active {
-      background-color: #fff;
-      color: #000;
-      font-weight: bold;
+      background-color: #fff; color: #000; font-weight: bold;
     }
 
-    /* Custom AR UI Overlay Container */
     #ar-ui-container {
-      display: none;
-      position: absolute;
-      inset: 0;
-      z-index: 1000;
-      pointer-events: none;
+      display: none; position: absolute; inset: 0; z-index: 1000; pointer-events: none;
     }
+    .ar-ui-layer { position: absolute; inset: 0; z-index: 20; pointer-events: none; }
 
-    /* UI Elements */
-    .ar-ui-layer {
-      position: absolute;
-      inset: 0;
-      z-index: 20;
-      pointer-events: none;
-    }
-
-    /* Calibration State UI */
     #instructions {
-      position: absolute;
-      top: 30px;
-      width: 100%;
-      text-align: center;
-      color: white;
-      font-family: sans-serif;
-      font-size: 16px;
-      line-height: 1.5;
-      text-shadow: 1px 1px 4px rgba(0,0,0,0.8);
-      pointer-events: none;
+      position: absolute; top: 30px; width: 100%; text-align: center;
+      color: white; font-family: sans-serif; font-size: 16px;
+      line-height: 1.5; text-shadow: 1px 1px 4px rgba(0,0,0,0.8); pointer-events: none;
     }
 
     #ghost-image {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 48vw; 
-      max-width: 240px;
-      opacity: 0.25;
-      border: 2px dashed #fff;
-      pointer-events: none;
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 48vw; max-width: 240px; opacity: 0.25; border: 2px dashed #fff; pointer-events: none;
     }
 
-    /* Version Display */
     #version-display {
-      position: absolute;
-      top: 15px;
-      left: 15px;
-      color: rgba(255, 255, 255, 0.5);
-      font-family: sans-serif;
-      font-size: 14px;
-      z-index: 9999;
-      pointer-events: none;
+      position: absolute; top: 15px; left: 15px; color: rgba(255, 255, 255, 0.5);
+      font-family: sans-serif; font-size: 14px; z-index: 9999; pointer-events: none;
     }
   </style>
 </head>
@@ -152,8 +85,6 @@
 
   <model-viewer
     id="exhibition-viewer"
-    src="models/project1.glb"
-    ios-src="models/project1.reality"
     bounds="tight"
     ar
     ar-placement="wall"
@@ -161,11 +92,10 @@
     camera-controls
     alt="Digital Art 3D Model">
 
-    <div id="version-display">v1.10</div>
+    <div id="version-display">v1.11</div>
 
     <button slot="ar-button" id="ar-button">Open in AR</button>
 
-    <!-- Custom AR DOM Overlay (Android WebXR only) -->
     <div id="ar-ui-container">
       <div id="calibration-state" class="ar-ui-layer">
         <div id="instructions">
@@ -180,7 +110,6 @@
 
   <div id="project-list"></div>
 
-  <!-- Import latest model-viewer -->
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 
   <script>
@@ -189,43 +118,76 @@
     const ghostImage = document.getElementById('ghost-image');
     const instructions = document.getElementById('instructions');
     const projectList = document.getElementById('project-list');
+    const arButton = document.getElementById('ar-button');
     
     let ghostTimeout;
+    let currentBlobUrl = null;
 
-    // Helper Function: Forces Safari to recognize the full URL path, preventing ARQL null errors
-    const getAbsoluteUrl = (relativePath) => {
-      return new URL(relativePath, window.location.href).href;
-    };
+    // Detect if device is iOS to conditionally execute the fetch logic
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-    // Immediately fix the initial HTML payload's ios-src with an absolute URL
-    viewer.setAttribute('ios-src', getAbsoluteUrl('models/project1.reality'));
+    // Asynchronous loading function
+    async function loadProject(index) {
+      // 1. Instantly update WebXR .glb for Android
+      viewer.setAttribute('src', `models/project${index}.glb`);
 
-    // Build the dynamic project menu (20 items)
+      // 2. Execute Pre-Fetch & Forge sequence for iOS Safari
+      if (isIOS) {
+        try {
+          // Lock the UI
+          arButton.classList.add('loading');
+          arButton.innerText = "Loading AR...";
+
+          // Fetch raw binary from GitHub
+          const response = await fetch(`models/project${index}.reality`);
+          const rawBinary = await response.arrayBuffer();
+
+          // Package into a Blob with strict Apple MIME type
+          const forgedBlob = new Blob([rawBinary], { type: 'model/vnd.reality' });
+
+          // Prevent memory leaks by revoking the previous URL before creating a new one
+          if (currentBlobUrl) {
+            URL.revokeObjectURL(currentBlobUrl);
+          }
+
+          // Generate internal iOS URL
+          currentBlobUrl = URL.createObjectURL(forgedBlob);
+
+          // Inject forged file into <model-viewer>
+          viewer.setAttribute('ios-src', currentBlobUrl);
+
+        } catch (error) {
+          console.error(`Failed to fetch project${index}.reality:`, error);
+          arButton.innerText = "Error Loading";
+        } finally {
+          // Unlock the UI
+          arButton.classList.remove('loading');
+          arButton.innerText = "Open in AR";
+        }
+      }
+    }
+
+    // Build the dynamic project menu
     for (let i = 1; i <= 20; i++) {
       const btn = document.createElement('button');
       btn.className = 'project-btn';
       btn.innerText = `Project ${i}`;
       
-      if (i === 1) {
-        btn.classList.add('active');
-      }
-
       btn.addEventListener('click', () => {
-        // Standard relative path for Android .glb
-        viewer.setAttribute('src', `models/project${i}.glb`);
-        
-        // Strict Absolute Path for iOS Safari .reality
-        viewer.setAttribute('ios-src', getAbsoluteUrl(`models/project${i}.reality`));
-        
-        // Update UI styling
         document.querySelectorAll('.project-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
+        
+        loadProject(i);
       });
 
       projectList.appendChild(btn);
     }
 
-    // Toggle AR UI visibility based on WebXR session status (Android only)
+    // Initialize the first project on boot
+    projectList.children[0].classList.add('active');
+    loadProject(1);
+
+    // WebXR UI Logic (Android Only)
     viewer.addEventListener('ar-status', (event) => {
       if (event.detail.status === 'not-presenting') {
         arUiContainer.style.display = 'none';
