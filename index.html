@@ -14,6 +14,7 @@
   Version: 1.11 - Removed Absolute URL logic. Implemented Async Fetch & Blob Forgery to manually enforce Apple MIME types.
   Version: 1.12 - Appended developer credit to version. Added interactive GPU-accelerated blurred blob background.
   Version: 1.13 - Swapped CSS blur for SVG Gaussian filter to fix Webkit dimming bug. Added desktop-responsive blob caps.
+  Version: 1.14 - Abandoned DOM filters. Implemented HTML5 Canvas API for guaranteed cross-device vibrant blur rendering.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -27,27 +28,13 @@
       overflow: hidden; background-color: #050014;
     }
 
-    /* Interactive Background Container */
-    #bg-container {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      overflow: hidden; z-index: -1; pointer-events: none;
+    /* Hardware-accelerated Canvas Background */
+    #bg-canvas {
+      position: absolute; top: 0; left: 0; 
+      width: 100%; height: 100%;
+      z-index: -1; pointer-events: none;
     }
 
-    /* Blob Elements (SVG Filtered) */
-    .blob {
-      position: absolute; top: 0; left: 0; border-radius: 50%;
-      /* Replaced standard CSS blur with strict SVG URL reference to fix Safari dimming */
-      filter: url('#blob-blur'); 
-      opacity: 0.8; pointer-events: none;
-      will-change: transform; 
-    }
-
-    /* Scaled down using vmin and max caps to prevent desktop GPU crashes */
-    #blob1 { width: 60vmin; height: 60vmin; max-width: 600px; max-height: 600px; background: #1a1aff; }
-    #blob2 { width: 50vmin; height: 50vmin; max-width: 500px; max-height: 500px; background: #9900ff; }
-    #blob3 { width: 70vmin; height: 70vmin; max-width: 700px; max-height: 700px; background: #26004d; }
-
-    /* Model Viewer */
     model-viewer { 
       width: 100%; height: 100%; 
       background-color: transparent; 
@@ -106,18 +93,8 @@
 </head>
 <body>
 
-  <!-- Invisible SVG filter definition block for high-performance mathematical blurring -->
-  <svg style="position: absolute; width: 0; height: 0;" aria-hidden="true">
-    <filter id="blob-blur" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="60" />
-    </filter>
-  </svg>
-
-  <div id="bg-container">
-    <div id="blob1" class="blob"></div>
-    <div id="blob2" class="blob"></div>
-    <div id="blob3" class="blob"></div>
-  </div>
+  <!-- The new Canvas element replaces the DOM divs -->
+  <canvas id="bg-canvas"></canvas>
 
   <model-viewer
     id="exhibition-viewer"
@@ -128,7 +105,7 @@
     camera-controls
     alt="Digital Art 3D Model">
 
-    <div id="version-display">v1.13 | developed by Ádám Pálvölgyi</div>
+    <div id="version-display">v1.14 | developed by Ádám Pálvölgyi</div>
 
     <button slot="ar-button" id="ar-button">Open in AR</button>
 
@@ -149,10 +126,23 @@
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 
   <script>
+    // --- CANVAS BLOB ANIMATION LOGIC ---
+    const canvas = document.getElementById('bg-canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Resize canvas strictly to window dimensions
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Define blobs with specific vibrant hex colors
     const blobs =[
-      { el: document.getElementById('blob1'), x: 0, y: 0, tx: 0, ty: 0, offset: 0, speed: 0.0008 },
-      { el: document.getElementById('blob2'), x: 0, y: 0, tx: 0, ty: 0, offset: 2, speed: 0.0012 },
-      { el: document.getElementById('blob3'), x: 0, y: 0, tx: 0, ty: 0, offset: 4, speed: 0.0009 }
+      { x: 0, y: 0, tx: 0, ty: 0, offset: 0, speed: 0.0008, color: '#1a1aff', radiusMul: 0.35 }, // Blue
+      { x: 0, y: 0, tx: 0, ty: 0, offset: 2, speed: 0.0012, color: '#9900ff', radiusMul: 0.30 }, // Magenta
+      { x: 0, y: 0, tx: 0, ty: 0, offset: 4, speed: 0.0009, color: '#26004d', radiusMul: 0.40 }  // Purple
     ];
 
     let pointerX = window.innerWidth / 2;
@@ -163,28 +153,51 @@
     window.addEventListener('pointermove', (e) => { if(isDragging) { pointerX = e.clientX; pointerY = e.clientY; } }, { capture: true });
     window.addEventListener('pointerup', () => { isDragging = false; }, { capture: true });
 
-    function animateBlobs() {
+    function drawBlobs() {
+      // Clear previous frame with solid dark background
+      ctx.fillStyle = '#050014';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Use screen blend mode so colors mix brightly where they overlap
+      ctx.globalCompositeOperation = 'screen';
+
       const time = performance.now();
-      
+      const baseRadius = Math.min(canvas.width, canvas.height);
+
       blobs.forEach(blob => {
+        // Idle vs Interactive logic
         if (!isDragging) {
-          blob.tx = (window.innerWidth / 2) + Math.sin(time * blob.speed + blob.offset) * (window.innerWidth * 0.3);
-          blob.ty = (window.innerHeight / 2) + Math.cos(time * blob.speed + blob.offset) * (window.innerHeight * 0.3);
+          blob.tx = (canvas.width / 2) + Math.sin(time * blob.speed + blob.offset) * (canvas.width * 0.3);
+          blob.ty = (canvas.height / 2) + Math.cos(time * blob.speed + blob.offset) * (canvas.height * 0.3);
         } else {
           blob.tx = pointerX + Math.sin(time * blob.speed) * 150;
           blob.ty = pointerY + Math.cos(time * blob.speed) * 150;
         }
 
+        // Lerp
         blob.x += (blob.tx - blob.x) * 0.015;
         blob.y += (blob.ty - blob.y) * 0.015;
 
-        blob.el.style.transform = `translate3d(calc(${blob.x}px - 50%), calc(${blob.y}px - 50%), 0)`;
+        // Draw radial gradient (creates the massive blur effect natively)
+        const radius = baseRadius * blob.radiusMul;
+        const gradient = ctx.createRadialGradient(blob.x, blob.y, 0, blob.x, blob.y, radius);
+        gradient.addColorStop(0, blob.color);
+        gradient.addColorStop(1, 'transparent');
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(blob.x, blob.y, radius, 0, Math.PI * 2);
+        ctx.fill();
       });
 
-      requestAnimationFrame(animateBlobs);
+      // Reset composite for next frame clearing
+      ctx.globalCompositeOperation = 'source-over';
+      requestAnimationFrame(drawBlobs);
     }
-    animateBlobs();
+    drawBlobs();
 
+
+    // --- AR & MODEL VIEWER LOGIC ---
     const viewer = document.getElementById('exhibition-viewer');
     const arUiContainer = document.getElementById('ar-ui-container');
     const ghostImage = document.getElementById('ghost-image');
