@@ -13,6 +13,7 @@
   Version: 1.10 - Reverted to v1.7. Removed scale hashes. Implemented Absolute URL resolution to fix Safari ARQL pathing bug.
   Version: 1.11 - Removed Absolute URL logic. Implemented Async Fetch & Blob Forgery to manually enforce Apple MIME types.
   Version: 1.12 - Appended developer credit to version. Added interactive GPU-accelerated blurred blob background.
+  Version: 1.13 - Swapped CSS blur for SVG Gaussian filter to fix Webkit dimming bug. Added desktop-responsive blob caps.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -23,7 +24,7 @@
   <style>
     body, html {
       margin: 0; padding: 0; width: 100%; height: 100%;
-      overflow: hidden; background-color: #050014; /* Deep dark blue background */
+      overflow: hidden; background-color: #050014;
     }
 
     /* Interactive Background Container */
@@ -32,21 +33,24 @@
       overflow: hidden; z-index: -1; pointer-events: none;
     }
 
-    /* Blob Elements */
+    /* Blob Elements (SVG Filtered) */
     .blob {
       position: absolute; top: 0; left: 0; border-radius: 50%;
-      filter: blur(80px); opacity: 0.7; pointer-events: none;
-      will-change: transform; /* Hardware acceleration hint */
+      /* Replaced standard CSS blur with strict SVG URL reference to fix Safari dimming */
+      filter: url('#blob-blur'); 
+      opacity: 0.8; pointer-events: none;
+      will-change: transform; 
     }
 
-    #blob1 { width: 60vw; height: 60vw; background: #1a1aff; } /* Blue */
-    #blob2 { width: 50vw; height: 50vw; background: #9900ff; } /* Magenta */
-    #blob3 { width: 70vw; height: 70vw; background: #26004d; } /* Deep Purple */
+    /* Scaled down using vmin and max caps to prevent desktop GPU crashes */
+    #blob1 { width: 60vmin; height: 60vmin; max-width: 600px; max-height: 600px; background: #1a1aff; }
+    #blob2 { width: 50vmin; height: 50vmin; max-width: 500px; max-height: 500px; background: #9900ff; }
+    #blob3 { width: 70vmin; height: 70vmin; max-width: 700px; max-height: 700px; background: #26004d; }
 
     /* Model Viewer */
     model-viewer { 
       width: 100%; height: 100%; 
-      background-color: transparent; /* Allows blobs to show through */
+      background-color: transparent; 
     }
 
     #ar-button {
@@ -58,9 +62,7 @@
       transition: background-color 0.3s, opacity 0.3s;
     }
     
-    #ar-button.loading {
-      opacity: 0.5; pointer-events: none;
-    }
+    #ar-button.loading { opacity: 0.5; pointer-events: none; }
 
     #project-list {
       position: absolute; bottom: 15px; left: 0; width: 100%; height: 60px;
@@ -104,7 +106,13 @@
 </head>
 <body>
 
-  <!-- Dynamic Animated Background -->
+  <!-- Invisible SVG filter definition block for high-performance mathematical blurring -->
+  <svg style="position: absolute; width: 0; height: 0;" aria-hidden="true">
+    <filter id="blob-blur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="60" />
+    </filter>
+  </svg>
+
   <div id="bg-container">
     <div id="blob1" class="blob"></div>
     <div id="blob2" class="blob"></div>
@@ -120,7 +128,7 @@
     camera-controls
     alt="Digital Art 3D Model">
 
-    <div id="version-display">v1.12 | developed by Ádám Pálvölgyi</div>
+    <div id="version-display">v1.13 | developed by Ádám Pálvölgyi</div>
 
     <button slot="ar-button" id="ar-button">Open in AR</button>
 
@@ -141,7 +149,6 @@
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 
   <script>
-    // --- BLOB ANIMATION LOGIC ---
     const blobs =[
       { el: document.getElementById('blob1'), x: 0, y: 0, tx: 0, ty: 0, offset: 0, speed: 0.0008 },
       { el: document.getElementById('blob2'), x: 0, y: 0, tx: 0, ty: 0, offset: 2, speed: 0.0012 },
@@ -152,7 +159,6 @@
     let pointerY = window.innerHeight / 2;
     let isDragging = false;
 
-    // Capture pointer events even if <model-viewer> tries to consume them
     window.addEventListener('pointerdown', (e) => { isDragging = true; pointerX = e.clientX; pointerY = e.clientY; }, { capture: true });
     window.addEventListener('pointermove', (e) => { if(isDragging) { pointerX = e.clientX; pointerY = e.clientY; } }, { capture: true });
     window.addEventListener('pointerup', () => { isDragging = false; }, { capture: true });
@@ -162,29 +168,23 @@
       
       blobs.forEach(blob => {
         if (!isDragging) {
-          // Idle State: Gentle sine wave wandering
-          blob.tx = (window.innerWidth / 2) + Math.sin(time * blob.speed + blob.offset) * (window.innerWidth * 0.4);
-          blob.ty = (window.innerHeight / 2) + Math.cos(time * blob.speed + blob.offset) * (window.innerHeight * 0.4);
+          blob.tx = (window.innerWidth / 2) + Math.sin(time * blob.speed + blob.offset) * (window.innerWidth * 0.3);
+          blob.ty = (window.innerHeight / 2) + Math.cos(time * blob.speed + blob.offset) * (window.innerHeight * 0.3);
         } else {
-          // Interaction State: Slowly attract to finger with slight orbit offset
           blob.tx = pointerX + Math.sin(time * blob.speed) * 150;
           blob.ty = pointerY + Math.cos(time * blob.speed) * 150;
         }
 
-        // Lerp equation: smooths the movement so it never snaps instantly
         blob.x += (blob.tx - blob.x) * 0.015;
         blob.y += (blob.ty - blob.y) * 0.015;
 
-        // Apply via 3D transform for GPU hardware acceleration
         blob.el.style.transform = `translate3d(calc(${blob.x}px - 50%), calc(${blob.y}px - 50%), 0)`;
       });
 
       requestAnimationFrame(animateBlobs);
     }
-    // Start animation loop
     animateBlobs();
 
-    // --- AR & MODEL VIEWER LOGIC ---
     const viewer = document.getElementById('exhibition-viewer');
     const arUiContainer = document.getElementById('ar-ui-container');
     const ghostImage = document.getElementById('ghost-image');
