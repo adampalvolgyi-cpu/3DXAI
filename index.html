@@ -15,6 +15,7 @@
   Version: 1.12 - Appended developer credit to version. Added interactive GPU-accelerated blurred blob background.
   Version: 1.13 - Swapped CSS blur for SVG Gaussian filter to fix Webkit dimming bug. Added desktop-responsive blob caps.
   Version: 1.14 - Abandoned DOM filters. Implemented HTML5 Canvas API for guaranteed cross-device vibrant blur rendering.
+  Version: 1.15 - Reverted background to static v1.11 state, removed Canvas/Blob animation logic, retained developer credit.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -25,20 +26,10 @@
   <style>
     body, html {
       margin: 0; padding: 0; width: 100%; height: 100%;
-      overflow: hidden; background-color: #050014;
+      overflow: hidden; background-color: #111;
     }
 
-    /* Hardware-accelerated Canvas Background */
-    #bg-canvas {
-      position: absolute; top: 0; left: 0; 
-      width: 100%; height: 100%;
-      z-index: -1; pointer-events: none;
-    }
-
-    model-viewer { 
-      width: 100%; height: 100%; 
-      background-color: transparent; 
-    }
+    model-viewer { width: 100%; height: 100%; }
 
     #ar-button {
       position: absolute; bottom: 100px; left: 50%;
@@ -49,7 +40,9 @@
       transition: background-color 0.3s, opacity 0.3s;
     }
     
-    #ar-button.loading { opacity: 0.5; pointer-events: none; }
+    #ar-button.loading {
+      opacity: 0.5; pointer-events: none;
+    }
 
     #project-list {
       position: absolute; bottom: 15px; left: 0; width: 100%; height: 60px;
@@ -93,9 +86,6 @@
 </head>
 <body>
 
-  <!-- The new Canvas element replaces the DOM divs -->
-  <canvas id="bg-canvas"></canvas>
-
   <model-viewer
     id="exhibition-viewer"
     bounds="tight"
@@ -105,7 +95,7 @@
     camera-controls
     alt="Digital Art 3D Model">
 
-    <div id="version-display">v1.14 | developed by Ádám Pálvölgyi</div>
+    <div id="version-display">v1.15 | developed by Ádám Pálvölgyi</div>
 
     <button slot="ar-button" id="ar-button">Open in AR</button>
 
@@ -126,78 +116,6 @@
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 
   <script>
-    // --- CANVAS BLOB ANIMATION LOGIC ---
-    const canvas = document.getElementById('bg-canvas');
-    const ctx = canvas.getContext('2d');
-
-    // Resize canvas strictly to window dimensions
-    function resizeCanvas() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    }
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-
-    // Define blobs with specific vibrant hex colors
-    const blobs =[
-      { x: 0, y: 0, tx: 0, ty: 0, offset: 0, speed: 0.0008, color: '#1a1aff', radiusMul: 0.35 }, // Blue
-      { x: 0, y: 0, tx: 0, ty: 0, offset: 2, speed: 0.0012, color: '#9900ff', radiusMul: 0.30 }, // Magenta
-      { x: 0, y: 0, tx: 0, ty: 0, offset: 4, speed: 0.0009, color: '#26004d', radiusMul: 0.40 }  // Purple
-    ];
-
-    let pointerX = window.innerWidth / 2;
-    let pointerY = window.innerHeight / 2;
-    let isDragging = false;
-
-    window.addEventListener('pointerdown', (e) => { isDragging = true; pointerX = e.clientX; pointerY = e.clientY; }, { capture: true });
-    window.addEventListener('pointermove', (e) => { if(isDragging) { pointerX = e.clientX; pointerY = e.clientY; } }, { capture: true });
-    window.addEventListener('pointerup', () => { isDragging = false; }, { capture: true });
-
-    function drawBlobs() {
-      // Clear previous frame with solid dark background
-      ctx.fillStyle = '#050014';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Use screen blend mode so colors mix brightly where they overlap
-      ctx.globalCompositeOperation = 'screen';
-
-      const time = performance.now();
-      const baseRadius = Math.min(canvas.width, canvas.height);
-
-      blobs.forEach(blob => {
-        // Idle vs Interactive logic
-        if (!isDragging) {
-          blob.tx = (canvas.width / 2) + Math.sin(time * blob.speed + blob.offset) * (canvas.width * 0.3);
-          blob.ty = (canvas.height / 2) + Math.cos(time * blob.speed + blob.offset) * (canvas.height * 0.3);
-        } else {
-          blob.tx = pointerX + Math.sin(time * blob.speed) * 150;
-          blob.ty = pointerY + Math.cos(time * blob.speed) * 150;
-        }
-
-        // Lerp
-        blob.x += (blob.tx - blob.x) * 0.015;
-        blob.y += (blob.ty - blob.y) * 0.015;
-
-        // Draw radial gradient (creates the massive blur effect natively)
-        const radius = baseRadius * blob.radiusMul;
-        const gradient = ctx.createRadialGradient(blob.x, blob.y, 0, blob.x, blob.y, radius);
-        gradient.addColorStop(0, blob.color);
-        gradient.addColorStop(1, 'transparent');
-
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(blob.x, blob.y, radius, 0, Math.PI * 2);
-        ctx.fill();
-      });
-
-      // Reset composite for next frame clearing
-      ctx.globalCompositeOperation = 'source-over';
-      requestAnimationFrame(drawBlobs);
-    }
-    drawBlobs();
-
-
-    // --- AR & MODEL VIEWER LOGIC ---
     const viewer = document.getElementById('exhibition-viewer');
     const arUiContainer = document.getElementById('ar-ui-container');
     const ghostImage = document.getElementById('ghost-image');
@@ -208,37 +126,51 @@
     let ghostTimeout;
     let currentBlobUrl = null;
 
+    // Detect if device is iOS to conditionally execute the fetch logic
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
+    // Asynchronous loading function
     async function loadProject(index) {
+      // 1. Instantly update WebXR .glb for Android
       viewer.setAttribute('src', `models/project${index}.glb`);
 
+      // 2. Execute Pre-Fetch & Forge sequence for iOS Safari
       if (isIOS) {
         try {
+          // Lock the UI
           arButton.classList.add('loading');
           arButton.innerText = "Loading AR...";
 
+          // Fetch raw binary from GitHub
           const response = await fetch(`models/project${index}.reality`);
           const rawBinary = await response.arrayBuffer();
+
+          // Package into a Blob with strict Apple MIME type
           const forgedBlob = new Blob([rawBinary], { type: 'model/vnd.reality' });
 
+          // Prevent memory leaks by revoking the previous URL before creating a new one
           if (currentBlobUrl) {
             URL.revokeObjectURL(currentBlobUrl);
           }
 
+          // Generate internal iOS URL
           currentBlobUrl = URL.createObjectURL(forgedBlob);
+
+          // Inject forged file into <model-viewer>
           viewer.setAttribute('ios-src', currentBlobUrl);
 
         } catch (error) {
           console.error(`Failed to fetch project${index}.reality:`, error);
           arButton.innerText = "Error Loading";
         } finally {
+          // Unlock the UI
           arButton.classList.remove('loading');
           arButton.innerText = "Open in AR";
         }
       }
     }
 
+    // Build the dynamic project menu
     for (let i = 1; i <= 20; i++) {
       const btn = document.createElement('button');
       btn.className = 'project-btn';
@@ -254,9 +186,11 @@
       projectList.appendChild(btn);
     }
 
+    // Initialize the first project on boot
     projectList.children[0].classList.add('active');
     loadProject(1);
 
+    // WebXR UI Logic (Android Only)
     viewer.addEventListener('ar-status', (event) => {
       if (event.detail.status === 'not-presenting') {
         arUiContainer.style.display = 'none';
