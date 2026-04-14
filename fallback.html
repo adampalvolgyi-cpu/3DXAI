@@ -16,20 +16,8 @@
   <title>AI_X Alternate AR</title>
   
   <style>
-    body, html { margin: 0; padding: 0; overflow: hidden; background-color: #000; font-family: sans-serif; }
+    body, html { margin: 0; padding: 0; overflow: hidden; background-color: #000; font-family: sans-serif; width: 100%; height: 100%; }
     
-    #ios-overlay {
-      position: absolute; inset: 0; background: rgba(0, 0, 0, 0.95);
-      display: flex; flex-direction: column; justify-content: center; align-items: center;
-      z-index: 9999; color: white; text-align: center; padding: 20px; box-sizing: border-box;
-    }
-    #ios-overlay h1 { margin-top: 0; font-size: 24px; }
-    #ios-overlay p { margin-bottom: 30px; line-height: 1.5; color: #ccc; font-size: 14px; max-width: 300px; }
-    #start-exhibition-btn {
-      padding: 15px 30px; font-size: 16px; font-weight: bold; background-color: #fff; color: #000;
-      border: none; border-radius: 8px; cursor: pointer;
-    }
-
     #back-btn {
       position: absolute; top: 20px; left: 20px; padding: 10px 15px;
       background-color: rgba(255, 255, 255, 0.2); color: #fff; border: 1px solid #fff;
@@ -38,7 +26,7 @@
     }
   </style>
 
-  <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
   <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 
   <script>
@@ -85,12 +73,6 @@
   </script>
 </head>
 <body>
-  
-  <div id="ios-overlay" style="display: none;">
-    <h1>AR Sensor Setup</h1>
-    <p>Please grant device motion permissions to stabilize the 3D model and enable the 3DOF Gyro fallback tracking when the marker is lost.</p>
-    <button id="start-exhibition-btn">Request Access</button>
-  </div>
 
   <a id="back-btn" href="index.html">
     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
@@ -100,42 +82,26 @@
   </a>
 
   <a-scene 
-    embedded 
-    arjs="sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
-    renderer="logarithmicDepthBuffer: true;"
-    vr-mode-ui="enabled: false">
+    vr-mode-ui="enabled: false"
+    arjs="sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 3x3; debugUIEnabled: false;">
     
-    <!-- Camera component required for device IMU tracking baseline -->
     <a-camera position="0 0 0" look-controls></a-camera>
     
     <a-marker type="barcode" id="barcode-marker" extended-tracking></a-marker>
   </a-scene>
 
   <script>
-    // iOS 13+ strict DeviceMotion permission protocol
-    const iosOverlay = document.getElementById('ios-overlay');
-    const startBtn = document.getElementById('start-exhibition-btn');
-    
-    // Check if device supports the API block
-    const requiresPermission = typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function';
-
-    if (requiresPermission) {
-      iosOverlay.style.display = 'flex';
-      
-      startBtn.addEventListener('click', () => {
-        DeviceMotionEvent.requestPermission()
-          .then(permissionState => {
-            if (permissionState === 'granted') {
-              if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission();
-              }
-              iosOverlay.style.display = 'none';
-            } else {
-              iosOverlay.innerHTML = `<h1>Access Denied</h1><p>Restart the browser and allow sensors for AR tracking.</p>`;
+    // Execute automatic IMU permission request
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+      DeviceMotionEvent.requestPermission()
+        .then(permissionState => {
+          if (permissionState === 'granted') {
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+              DeviceOrientationEvent.requestPermission();
             }
-          })
-          .catch(console.error);
-      });
+          }
+        })
+        .catch(console.warn); // Suppress errors natively
     }
   </script>
 </body>
