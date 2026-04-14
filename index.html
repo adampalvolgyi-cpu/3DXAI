@@ -23,149 +23,319 @@
 -->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>AI_X AR Exhibition</title>
   <style>
-    body, html {
-      margin: 0; padding: 0; width: 100%; height: 100%;
-      overflow: hidden; background-color: #111;
+    body,
+    html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #111;
     }
 
-    model-viewer { width: 100%; height: 100%; }
+    model-viewer {
+      width: 100%;
+      height: 100%;
+    }
 
     /* Top Left Logo */
     #logo {
-      position: absolute; top: 20px; left: 20px;
-      max-height: 40px; z-index: 100; pointer-events: none;
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      max-height: 40px;
+      z-index: 100;
+      pointer-events: none;
     }
 
     /* Top Right Hamburger Menu */
     #menu-btn {
-      position: absolute; top: 20px; right: 20px;
-      background: transparent; border: none; cursor: pointer;
-      z-index: 101; fill: white; padding: 5px;
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      z-index: 101;
+      fill: white;
+      padding: 5px;
     }
 
     /* Pop-up Menu Modal */
     #menu-popup {
-      display: none; position: absolute; top: 60px; right: 20px;
-      background: white; border-radius: 8px; padding: 15px;
-      width: 156px; /* Reduced by exactly 40% from 260px */
-      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-      z-index: 1000; font-family: sans-serif; font-size: 13px; color: #333;
+      display: none;
+      position: absolute;
+      top: 60px;
+      right: 20px;
+      background: white;
+      border-radius: 8px;
+      padding: 15px;
+      width: 156px;
+      /* Reduced by exactly 40% from 260px */
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      font-family: sans-serif;
+      font-size: 13px;
+      color: #333;
     }
+
     #menu-popup button {
-      display: block; width: 100%; padding: 10px; margin-bottom: 8px;
-      border: none; background: #000; color: #fff; border-radius: 6px; /* Inverted styling */
-      cursor: pointer; font-weight: bold; font-size: 13px; transition: background 0.2s;
+      display: block;
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 8px;
+      border: none;
+      background: #000;
+      color: #fff;
+      border-radius: 6px;
+      /* Inverted styling */
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 13px;
+      transition: background 0.2s;
     }
-    #menu-popup button:active { background: #444; }
-    #menu-popup a { color: #000; text-decoration: none; transition: opacity 0.2s; }
-    #menu-popup a:hover { opacity: 0.6; }
-    
+
+    #menu-popup button:active {
+      background: #444;
+    }
+
+    #menu-popup a {
+      color: #000;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+
+    #menu-popup a:hover {
+      opacity: 0.6;
+    }
+
     #menu-popup .credits {
-      margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; 
-      line-height: 1.4; text-align: center; /* Centered alignment */
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #eee;
+      line-height: 1.4;
+      text-align: center;
+      /* Centered alignment */
     }
+
     .icon-row {
-      display: flex; justify-content: center; gap: 12px; margin-top: 5px; margin-bottom: 10px;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 5px;
+      margin-bottom: 10px;
     }
-    
+
     #menu-qr-image {
-      display: none; width: 100%; margin-top: 10px; margin-bottom: 10px; border-radius: 4px;
+      display: none;
+      width: 100%;
+      margin-top: 10px;
+      margin-bottom: 10px;
+      border-radius: 4px;
     }
 
     .cookie-statement {
-      margin-top: 15px; font-size: 9px; text-align: center; color: #888;
+      margin-top: 15px;
+      font-size: 9px;
+      text-align: center;
+      color: #888;
     }
 
     #ar-button {
-      position: absolute; bottom: 100px; left: 50%;
-      transform: translateX(-50%); background-color: #fff;
-      color: #000; padding: 15px 30px; font-size: 18px;
-      font-weight: bold; border: none; border-radius: 8px;
-      cursor: pointer; z-index: 100;
+      position: absolute;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #fff;
+      color: #000;
+      padding: 15px 30px;
+      font-size: 18px;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      z-index: 100;
       transition: background-color 0.3s, opacity 0.3s;
     }
-    #ar-button.loading { opacity: 0.5; pointer-events: none; }
+
+    #ar-button.loading {
+      opacity: 0.5;
+      pointer-events: none;
+    }
 
     #alt-ar-button {
-      position: absolute; bottom: 160px; left: 50%;
-      transform: translateX(-50%); background-color: transparent;
-      color: #fff; padding: 10px 20px; font-size: 14px;
-      border: 1px solid #fff; border-radius: 8px;
-      cursor: pointer; z-index: 100; font-family: sans-serif;
+      position: absolute;
+      bottom: 160px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: transparent;
+      color: #fff;
+      padding: 10px 20px;
+      font-size: 14px;
+      border: 1px solid #fff;
+      border-radius: 8px;
+      cursor: pointer;
+      z-index: 100;
+      font-family: sans-serif;
       transition: background-color 0.3s;
     }
-    #alt-ar-button:active { background-color: rgba(255,255,255,0.2); }
+
+    #alt-ar-button:active {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
 
     #project-list {
-      position: absolute; bottom: 25px; left: 0; width: 100%; height: 60px;
-      display: flex; gap: 10px; overflow-x: auto; padding: 0 20px;
-      box-sizing: border-box; z-index: 100; align-items: center;
-      -ms-overflow-style: none; scrollbar-width: none;
+      position: absolute;
+      bottom: 25px;
+      left: 0;
+      width: 100%;
+      height: 60px;
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 0 20px;
+      box-sizing: border-box;
+      z-index: 100;
+      align-items: center;
+      -ms-overflow-style: none;
+      scrollbar-width: none;
     }
-    #project-list::-webkit-scrollbar { display: none; }
+
+    #project-list::-webkit-scrollbar {
+      display: none;
+    }
 
     .project-btn {
-      flex-shrink: 0; background-color: rgba(255, 255, 255, 0.2);
-      color: white; border: 1px solid #fff; padding: 10px 20px;
-      border-radius: 8px; cursor: pointer; font-family: sans-serif;
-      font-size: 14px; transition: background-color 0.2s, color 0.2s;
+      flex-shrink: 0;
+      background-color: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: 1px solid #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: sans-serif;
+      font-size: 14px;
+      transition: background-color 0.2s, color 0.2s;
     }
+
     .project-btn.active {
-      background-color: #fff; color: #000; font-weight: bold;
+      background-color: #fff;
+      color: #000;
+      font-weight: bold;
     }
 
     #ar-ui-container {
-      display: none; position: absolute; inset: 0; z-index: 1000; pointer-events: none;
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 1000;
+      pointer-events: none;
     }
-    .ar-ui-layer { position: absolute; inset: 0; z-index: 20; pointer-events: none; }
+
+    .ar-ui-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      pointer-events: none;
+    }
 
     #instructions {
-      position: absolute; top: 30px; width: 100%; text-align: center;
-      color: white; font-family: sans-serif; font-size: 16px;
-      line-height: 1.5; text-shadow: 1px 1px 4px rgba(0,0,0,0.8); pointer-events: none;
+      position: absolute;
+      top: 30px;
+      width: 100%;
+      text-align: center;
+      color: white;
+      font-family: sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+      text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
+      pointer-events: none;
     }
 
     #ghost-image {
-      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      width: 33.6vw; max-width: 168px; opacity: 0.25; border: 2px dashed #fff; pointer-events: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 33.6vw;
+      max-width: 168px;
+      opacity: 0.25;
+      border: 2px dashed #fff;
+      pointer-events: none;
     }
 
     #version-display {
-      position: absolute; bottom: 5px; left: 0; width: 100%; text-align: center;
-      color: rgba(255, 255, 255, 0.5); font-family: sans-serif; font-size: 10px; 
-      z-index: 9999; pointer-events: none;
+      position: absolute;
+      bottom: 5px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      color: rgba(255, 255, 255, 0.5);
+      font-family: sans-serif;
+      font-size: 10px;
+      z-index: 9999;
+      pointer-events: none;
     }
 
-    #desktop-qr-container { display: none; }
+    #desktop-qr-container {
+      display: none;
+    }
 
     /* Desktop-Exclusive CSS Constraints */
     @media (hover: hover) and (pointer: fine) {
-      #ar-button { display: none !important; }
-      #alt-ar-button { display: none !important; }
-      #desktop-qr-container {
-        display: block; position: absolute; right: 30px; bottom: 100px;
-        background: white; padding: 15px; border-radius: 12px;
-        text-align: center; z-index: 100; font-family: sans-serif;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+      #ar-button {
+        display: none !important;
       }
-      #desktop-qr-container p { margin: 0 0 10px 0; font-weight: bold; font-size: 16px; color: #000; }
+
+      #alt-ar-button {
+        display: none !important;
+      }
+
+      #desktop-qr-container {
+        display: block;
+        position: absolute;
+        right: 30px;
+        bottom: 100px;
+        background: white;
+        padding: 15px;
+        border-radius: 12px;
+        text-align: center;
+        z-index: 100;
+        font-family: sans-serif;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      }
+
+      #desktop-qr-container p {
+        margin: 0 0 10px 0;
+        font-weight: bold;
+        font-size: 16px;
+        color: #000;
+      }
+
       /* Reduced 50% from 300px to 150px */
-      #desktop-qr-image { width: 150px; height: 150px; display: block; margin: 0 auto; }
+      #desktop-qr-image {
+        width: 150px;
+        height: 150px;
+        display: block;
+        margin: 0 auto;
+      }
     }
   </style>
 </head>
+
 <body>
 
   <img id="logo" src="logo.png" alt="AI_X Logo">
 
   <button id="menu-btn" aria-label="Menu">
     <svg viewBox="0 0 24 24" width="30" height="30">
-      <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+      <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
     </svg>
   </button>
 
@@ -176,23 +346,33 @@
     <button id="menu-qr-btn">Show QR Code</button>
     <img id="menu-qr-image" src="" alt="Project QR Code">
     <button id="share-btn">Share</button>
-    
+
     <div class="credits">
       <strong>Ádám Pálvölgyi</strong>
       <div class="icon-row">
         <a href="mailto:adampalvolgyi@gmail.com" aria-label="Email">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path
+              d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+          </svg>
         </a>
         <a href="https://instagram.com/adampalvolgyi" target="_blank" aria-label="Instagram">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2m-.2 2A3.6 3.6 0 0 0 4 7.6v8.8C4 18.4 5.6 20 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6C20 5.6 18.4 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 0 1 1.25 1.25A1.25 1.25 0 0 1 17.25 8 1.25 1.25 0 0 1 16 6.75a1.25 1.25 0 0 1 1.25-1.25M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3z"/></svg>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path
+              d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2m-.2 2A3.6 3.6 0 0 0 4 7.6v8.8C4 18.4 5.6 20 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6C20 5.6 18.4 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 0 1 1.25 1.25A1.25 1.25 0 0 1 17.25 8 1.25 1.25 0 0 1 16 6.75a1.25 1.25 0 0 1 1.25-1.25M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3z" />
+          </svg>
         </a>
       </div>
-      
+
       <strong>Exploratív Építészeti Tanszék</strong><br>
-      <a href="https://www.explorativ.bme.hu/" target="_blank" style="font-size: 11px; display: block; margin-top: 2px;">bme.hu</a>
+      <a href="https://www.explorativ.bme.hu/" target="_blank"
+        style="font-size: 11px; display: block; margin-top: 2px;">bme.hu</a>
       <div class="icon-row" style="margin-bottom: 0;">
         <a href="https://instagram.com/explorativ_bme" target="_blank" aria-label="Instagram">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2m-.2 2A3.6 3.6 0 0 0 4 7.6v8.8C4 18.4 5.6 20 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6C20 5.6 18.4 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 0 1 1.25 1.25A1.25 1.25 0 0 1 17.25 8 1.25 1.25 0 0 1 16 6.75a1.25 1.25 0 0 1 1.25-1.25M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3z"/></svg>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path
+              d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2m-.2 2A3.6 3.6 0 0 0 4 7.6v8.8C4 18.4 5.6 20 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6C20 5.6 18.4 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 0 1 1.25 1.25A1.25 1.25 0 0 1 17.25 8 1.25 1.25 0 0 1 16 6.75a1.25 1.25 0 0 1 1.25-1.25M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3z" />
+          </svg>
         </a>
       </div>
     </div>
@@ -200,13 +380,7 @@
     <div class="cookie-statement">We do not use cookies</div>
   </div>
 
-  <model-viewer
-    id="exhibition-viewer"
-    bounds="tight"
-    ar
-    ar-placement="wall"
-    ar-scale="fixed"
-    camera-controls
+  <model-viewer id="exhibition-viewer" bounds="tight" ar ar-placement="wall" ar-scale="fixed" camera-controls
     alt="Digital Art 3D Model">
 
     <div id="version-display">v1.19 | developed by Ádám Pálvölgyi</div>
@@ -244,7 +418,7 @@
     const arButton = document.getElementById('ar-button');
     const altArButton = document.getElementById('alt-ar-button');
     const desktopQrImage = document.getElementById('desktop-qr-image');
-    
+
     // Menu DOM Elements
     const menuBtn = document.getElementById('menu-btn');
     const menuPopup = document.getElementById('menu-popup');
@@ -380,7 +554,7 @@
       const btn = document.createElement('button');
       btn.className = 'project-btn';
       btn.innerText = `Project ${i}`;
-      
+
       btn.addEventListener('click', () => {
         document.querySelectorAll('.project-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
@@ -397,15 +571,15 @@
     viewer.addEventListener('ar-status', (event) => {
       if (event.detail.status === 'not-presenting') {
         arUiContainer.style.display = 'none';
-        viewer.setAttribute('scale', '1 1 1'); 
+        viewer.setAttribute('scale', '1 1 1');
         clearTimeout(ghostTimeout);
       } else if (event.detail.status === 'session-started') {
         arUiContainer.style.display = 'block';
         ghostImage.style.display = 'block';
         instructions.style.display = 'block';
-        
+
         viewer.setAttribute('scale', '0.0001 0.0001 0.0001');
-        
+
         ghostTimeout = setTimeout(() => {
           ghostImage.style.display = 'none';
           instructions.style.display = 'none';
@@ -413,7 +587,7 @@
       } else if (event.detail.status === 'object-placed') {
         ghostImage.style.display = 'none';
         instructions.style.display = 'none';
-        
+
         viewer.setAttribute('scale', '1 1 1');
         clearTimeout(ghostTimeout);
       }
@@ -427,4 +601,5 @@
     });
   </script>
 </body>
+
 </html>
