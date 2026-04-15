@@ -147,6 +147,47 @@
       color: #888;
     }
 
+    #custom-install-popup {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      width: 280px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      z-index: 2000;
+      font-family: sans-serif;
+      color: #333;
+      text-align: center;
+    }
+
+    #custom-install-popup img {
+      width: 100%;
+      max-width: 200px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+    }
+
+    #custom-install-popup p {
+      font-size: 14px;
+      line-height: 1.5;
+      margin-bottom: 15px;
+    }
+
+    #custom-install-popup button.close-btn {
+      background: #000;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      width: 100%;
+    }
+
     #ar-button {
       position: absolute;
       bottom: 100px;
@@ -340,12 +381,12 @@
   </button>
 
   <div id="menu-popup">
-    <!-- New PWA Install Button -->
-    <button id="install-btn">Install Webapp</button>
     <button id="copy-link-btn">Copy Link</button>
     <button id="menu-qr-btn">Show QR Code</button>
     <img id="menu-qr-image" src="" alt="Project QR Code">
     <button id="share-btn">Share</button>
+    <!-- New PWA Install Button -->
+    <button id="install-btn">Install Webapp</button>
 
     <div class="credits">
       <strong>Ádám Pálvölgyi</strong>
@@ -378,6 +419,12 @@
     </div>
 
     <div class="cookie-statement">We do not use cookies</div>
+  </div>
+
+  <div id="custom-install-popup">
+    <img src="webapp.gif" alt="Install Webapp Tutorial">
+    <p>To install on this device, tap your browser's <strong>Share</strong> icon and select <strong>Add to Home Screen</strong>.</p>
+    <button class="close-btn" id="close-install-popup">Close</button>
   </div>
 
   <model-viewer id="exhibition-viewer" bounds="tight" ar ar-placement="wall" ar-scale="fixed" camera-controls
@@ -430,7 +477,6 @@
 
     let ghostTimeout;
     let currentBlobUrl = null;
-    let deferredPrompt; // Holds the native PWA install prompt
 
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const isChromeIOS = isIOS && /CriOS/.test(navigator.userAgent);
@@ -441,20 +487,16 @@
     const initialProject = parseInt(urlParams.get('p')) || 1;
 
     // PWA Install Logic
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e; // Cache the event so it can be triggered later.
+    const customInstallPopup = document.getElementById('custom-install-popup');
+    const closeInstallPopupBtn = document.getElementById('close-install-popup');
+
+    installBtn.addEventListener('click', () => {
+      menuPopup.style.display = 'none';
+      customInstallPopup.style.display = 'block';
     });
 
-    installBtn.addEventListener('click', async () => {
-      if (deferredPrompt) {
-        deferredPrompt.prompt(); // Show the native browser install popup
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') deferredPrompt = null;
-      } else {
-        // Fallback for iOS Safari which actively blocks standard web app installation prompts
-        alert("To install on this device: Tap the browser's 'Share' icon, then select 'Add to Home Screen'.");
-      }
+    closeInstallPopupBtn.addEventListener('click', () => {
+      customInstallPopup.style.display = 'none';
     });
 
     // Toggle Hamburger Menu
