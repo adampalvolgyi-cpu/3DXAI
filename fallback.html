@@ -1,23 +1,19 @@
 <!-- 
-  Version: 2.1
+  Version: 2.2
   Changelog:
-  - Fixed background color bug masking the camera video feed (changed #111 to transparent).
-  - Switched detection engine to MindAR for neural-net image tracking.
-  - Implemented dual-marker target setup matching `exhibition.mind`.
-  - Added tap-to-start iOS permission overlay logic natively bypassing blockers.
-  - Added custom `imu-fallback` quaternion orbital logic for target-loss 3DoF stability.
+  - Reverted dynamic logic. Hardcoded <a-scene> back into the DOM baseline. 
+  - Restored static WebRTC loading to bypass iOS 15+ promise-chaining hardware blocks causing black camera feeds.
+  - Dynamically appending meshes to hardcoded targets via ?p=X to preserve bandwidth.
 -->
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>AI_X Alternate AR</title>
 
   <style>
-    body,
-    html {
+    body, html {
       margin: 0;
       padding: 0;
       overflow: hidden;
@@ -48,10 +44,7 @@
 
     #tap-overlay {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      top: 0; left: 0; width: 100%; height: 100%;
       background: #111;
       color: #fff;
       display: flex;
@@ -72,7 +65,7 @@
       init: function () {
         this.targetEl = this.el.parentNode; // The mindar-image-target
         this.sceneEl = document.querySelector('a-scene');
-
+        
         let gyro = document.getElementById('gyro-tracker');
         if (!gyro) {
           gyro = document.createElement('a-entity');
@@ -89,7 +82,7 @@
 
         this.targetEl.addEventListener('targetFound', () => {
           this.isLost = false;
-
+          
           if (this.el.object3D.parent !== this.targetEl.object3D) {
             this.targetEl.object3D.add(this.el.object3D);
             this.el.object3D.position.set(0, 0, 0);
@@ -100,17 +93,17 @@
 
         this.targetEl.addEventListener('targetLost', () => {
           this.isLost = true;
-
+          
           this.targetEl.object3D.updateWorldMatrix(true, false);
           this.baselineTargetPos.setFromMatrixPosition(this.targetEl.object3D.matrixWorld);
           this.baselineTargetRot.setFromRotationMatrix(this.targetEl.object3D.matrixWorld);
-
+          
           let currentGyro = new THREE.Quaternion();
           this.gyroTracker.getWorldQuaternion(currentGyro);
           this.baselineGyroInverse.copy(currentGyro).invert();
 
           this.sceneEl.object3D.add(this.el.object3D);
-          this.el.object3D.visible = true;
+          this.el.object3D.visible = true; 
         });
       },
 
@@ -118,14 +111,14 @@
         if (this.isLost && this.el.object3D.parent === this.sceneEl.object3D) {
           let currentGyro = new THREE.Quaternion();
           this.gyroTracker.getWorldQuaternion(currentGyro);
-
+          
           let currentGyroInv = currentGyro.clone().invert();
           let baselineGyro = this.baselineGyroInverse.clone().invert();
           let inverseDeltaQ = currentGyroInv.multiply(baselineGyro);
-
+          
           let newPos = this.baselineTargetPos.clone().applyQuaternion(inverseDeltaQ);
           this.el.object3D.position.copy(newPos);
-
+          
           let newRot = inverseDeltaQ.clone().multiply(this.baselineTargetRot);
           this.el.object3D.quaternion.copy(newRot);
         }
@@ -135,59 +128,39 @@
     document.addEventListener('DOMContentLoaded', () => {
       const urlParams = new URLSearchParams(window.location.search);
       const projectId = urlParams.get('p') || 1;
-
       document.getElementById('back-btn').href = `index.html?p=${projectId}`;
 
+      // 1) Dynamically link the target asset model natively
+      const assets = document.getElementById('scene-assets');
+      assets.insertAdjacentHTML('beforeend', `<a-asset-item id="project-model" src="models/project${projectId}.glb"></a-asset-item>`);
+
+      // 2) Dynamically spawn Exhibition Containers into Hardcoded Targets
+      const target0 = document.getElementById('target0');
+      target0.insertAdjacentHTML('beforeend', `
+        <a-entity class="exhibition-container" imu-fallback>
+          <a-entity gltf-model="#project-model" position="0 0 0" rotation="0 0 0"></a-entity>
+        </a-entity>
+      `);
+
+      const target1 = document.getElementById('target1');
+      target1.insertAdjacentHTML('beforeend', `
+        <a-entity class="exhibition-container" imu-fallback>
+          <a-entity gltf-model="#project-model" position="0 -1 3" rotation="-90 0 0"></a-entity>
+        </a-entity>
+      `);
+
       const overlay = document.getElementById('tap-overlay');
-
-      const startAR = () => {
-        overlay.style.display = 'none';
-
-        const sceneHTML = `
-          <a-scene mindar-image="imageTargetSrc: exhibition.mind;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
-            
-            <a-assets>
-               <a-asset-item id="project-model" src="models/project${projectId}.glb"></a-asset-item>
-            </a-assets>
-
-            <a-camera position="0 0 0" look-controls="enabled: false"></a-camera> 
-
-            <!-- Target 0 : Floor -->
-            <a-entity mindar-image-target="targetIndex: 0">
-               <a-entity class="exhibition-container" imu-fallback>
-                  <a-entity gltf-model="#project-model" position="0 0 0" rotation="0 0 0"></a-entity>
-               </a-entity>
-            </a-entity>
-            
-            <!-- Target 1 : Wall Setup -->
-            <a-entity mindar-image-target="targetIndex: 1">
-               <a-entity class="exhibition-container" imu-fallback>
-                  <a-entity gltf-model="#project-model" position="0 -1 3" rotation="-90 0 0"></a-entity>
-               </a-entity>
-            </a-entity>
-
-          </a-scene>
-        `;
-        document.body.insertAdjacentHTML('beforeend', sceneHTML);
-      };
 
       const attemptPermit = async () => {
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
           try {
-            const permit = await DeviceOrientationEvent.requestPermission();
-            if (permit === 'granted') {
-              startAR();
-            } else {
-              alert('Gyroscope permission denied. 3DoF orientation tracking will not work.');
-              startAR();
-            }
+            await DeviceOrientationEvent.requestPermission();
           } catch (e) {
-            startAR();
+            console.warn("Gyro permission denied or failed.");
           }
-        } else {
-          startAR();
         }
-
+        overlay.style.display = 'none';
+        
         overlay.removeEventListener('click', attemptPermit);
         overlay.removeEventListener('touchstart', attemptPermit);
       };
@@ -197,16 +170,28 @@
     });
   </script>
 </head>
-
 <body>
   <div id="tap-overlay">Tap anywhere to begin AR</div>
-
+  
   <a id="back-btn" href="#">
     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
       <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
     </svg>
     Exit Alternate AR
   </a>
-</body>
 
+  <!-- Hardcoded Engine ensuring WebRTC Hardware Access loads immediately -->
+  <a-scene mindar-image="imageTargetSrc: exhibition.mind;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+    
+    <a-assets id="scene-assets"></a-assets>
+
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera> 
+
+    <a-entity mindar-image-target="targetIndex: 0" id="target0"></a-entity>
+    
+    <a-entity mindar-image-target="targetIndex: 1" id="target1"></a-entity>
+
+  </a-scene>
+
+</body>
 </html>
