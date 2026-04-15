@@ -1,6 +1,7 @@
 <!-- 
-  Version: 2.0
+  Version: 2.1
   Changelog:
+  - Fixed background color bug masking the camera video feed (changed #111 to transparent).
   - Switched detection engine to MindAR for neural-net image tracking.
   - Implemented dual-marker target setup matching `exhibition.mind`.
   - Added tap-to-start iOS permission overlay logic natively bypassing blockers.
@@ -20,7 +21,7 @@
       margin: 0;
       padding: 0;
       overflow: hidden;
-      background-color: #111;
+      background-color: transparent;
       font-family: sans-serif;
       width: 100%;
       height: 100%;
