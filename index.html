@@ -20,6 +20,7 @@
   Version: 1.17 - Re-introduced scale-hiding logic. Shrunk ghost image. Deep Linking (?p=X). Native sharing APIs.
   Version: 1.18 - Reduced desktop QR by 50%. Restyled hamburger menu to 156px width with inverted buttons. Added PWA Install logic, SVG credit icons, and cookie statement.
   Version: 1.19 - Added Alternative AR button routing to A-Frame/AR.js fallback.
+  Version: 1.20 - Moved install logic to custom modal; lazy load webapp.gif on hamburger click.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -422,7 +423,7 @@
   </div>
 
   <div id="custom-install-popup">
-    <img src="webapp.gif" alt="Install Webapp Tutorial">
+    <img id="install-tutorial-gif" alt="Install Webapp Tutorial">
     <p>To install on this device, tap your browser's <strong>Share</strong> icon and select <strong>Add to Home Screen</strong>.</p>
     <button class="close-btn" id="close-install-popup">Close</button>
   </div>
@@ -430,7 +431,7 @@
   <model-viewer id="exhibition-viewer" bounds="tight" ar ar-placement="wall" ar-scale="fixed" camera-controls
     alt="Digital Art 3D Model">
 
-    <div id="version-display">v1.19 | developed by Ádám Pálvölgyi</div>
+    <div id="version-display">v1.20 | developed by Ádám Pálvölgyi</div>
 
     <button slot="ar-button" id="ar-button">Open in AR</button>
     <button id="alt-ar-button">Alternate AR</button>
@@ -502,6 +503,11 @@
     // Toggle Hamburger Menu
     menuBtn.addEventListener('click', () => {
       menuPopup.style.display = (menuPopup.style.display === 'block') ? 'none' : 'block';
+      
+      const tutorialGif = document.getElementById('install-tutorial-gif');
+      if (!tutorialGif.getAttribute('src')) {
+        tutorialGif.setAttribute('src', 'webapp.gif');
+      }
     });
 
     // Copy Link Logic
