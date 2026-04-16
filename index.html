@@ -22,6 +22,7 @@
   Version: 1.19 - Added Alternative AR button routing to A-Frame/AR.js fallback.
   Version: 1.20 - Moved install logic to custom modal; lazy load webapp.gif on hamburger click.
   Version: 1.21 - Added CSS animations to popups and animated loading UI during GLB loading.
+  Version: 1.22 - Shifted <model-viewer> module up by 20% visually via CSS offset constraints.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -78,8 +79,13 @@
     }
 
     model-viewer {
+      position: absolute;
+      top: -40vh;
+      top: -40dvh;
+      left: 0;
       width: 100%;
-      height: 100%;
+      height: 140vh;
+      height: 140dvh;
     }
 
     /* Top Left Logo */
@@ -348,7 +354,8 @@
 
     #instructions {
       position: absolute;
-      top: 30px;
+      top: calc(40vh + 30px);
+      top: calc(40dvh + 30px);
       width: 100%;
       text-align: center;
       color: white;
@@ -495,7 +502,7 @@
       <div class="loading-text">LOADING...</div>
     </div>
 
-    <div id="version-display">v1.21 | developed by Ádám Pálvölgyi</div>
+    <div id="version-display">v1.22 | developed by Ádám Pálvölgyi</div>
 
     <button slot="ar-button" id="ar-button">Open in AR</button>
     <button id="alt-ar-button">Alternate AR</button>
