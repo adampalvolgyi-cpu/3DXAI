@@ -25,6 +25,7 @@
   Version: 1.22 - Shifted <model-viewer> module up by 20% visually via CSS offset constraints.
   Version: 1.23 - Reduced <model-viewer> upward layout shift from 20% to 10%.
   Version: 1.24 - Added comprehensive EN/HU language toggle with localStorage state mapping.
+  Version: 1.25 - Aligned language button, flipped EN/HU label logic, set default lang via navigator, shifted layout down by 5%, enabled USDZ fallback.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -82,12 +83,12 @@
 
     model-viewer {
       position: absolute;
-      top: -20vh;
-      top: -20dvh;
+      top: -10vh;
+      top: -10dvh;
       left: 0;
       width: 100%;
-      height: 120vh;
-      height: 120dvh;
+      height: 110vh;
+      height: 110dvh;
     }
 
     /* Top Left Logo */
@@ -103,7 +104,7 @@
     /* Top Right Hamburger Menu */
     #lang-btn {
       position: absolute;
-      top: 20px;
+      top: 25px;
       right: 70px;
       background: transparent;
       border: 1px solid white;
@@ -380,8 +381,8 @@
 
     #instructions {
       position: absolute;
-      top: calc(20vh + 30px);
-      top: calc(20dvh + 30px);
+      top: calc(10vh + 30px);
+      top: calc(10dvh + 30px);
       width: 100%;
       text-align: center;
       color: white;
@@ -529,7 +530,7 @@
       <div class="loading-text">LOADING...</div>
     </div>
 
-    <div id="version-display">v1.24 | developed by Ádám Pálvölgyi</div>
+    <div id="version-display">v1.25 | developed by Ádám Pálvölgyi</div>
 
     <button slot="ar-button" id="ar-button">Open in AR</button>
     <button id="alt-ar-button">Alternate AR</button>
@@ -599,7 +600,10 @@
       }
     };
 
-    let currentLang = localStorage.getItem('appLang') || 'en';
+    let currentLang = localStorage.getItem('appLang');
+    if (!currentLang) {
+      currentLang = navigator.language.toLowerCase().startsWith('hu') ? 'hu' : 'en';
+    }
 
     const viewer = document.getElementById('exhibition-viewer');
     const arUiContainer = document.getElementById('ar-ui-container');
@@ -622,7 +626,7 @@
     const shareBtn = document.getElementById('share-btn');
 
     function refreshLanguage() {
-      langBtn.innerText = currentLang === 'en' ? 'EN' : 'HU';
+      langBtn.innerText = currentLang === 'en' ? 'HU' : 'EN';
       copyLinkBtn.innerText = langDict[currentLang].copy_link;
       
       if (menuQrImage.style.display === 'block') {
@@ -781,8 +785,8 @@
             viewer.setAttribute('ios-src', currentBlobUrl);
 
           } catch (error) {
-            console.error(`Failed to fetch project${index}.reality:`, error);
-            arButton.innerText = langDict[currentLang].error_loading;
+            console.warn(`No .reality file found for project${index}, falling back to auto-generated USDZ.`);
+            viewer.removeAttribute('ios-src');
           } finally {
             arButton.classList.remove('loading');
             arButton.innerText = langDict[currentLang].open_ar;

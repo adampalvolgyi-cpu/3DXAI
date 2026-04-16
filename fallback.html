@@ -5,6 +5,7 @@
   - Preserved MindAR intrinsic physics scale during decoupling to prevent warping.
   - Delayed look-controls boot natively post-permissions to ensure valid DeviceOrientation parsing (fixing the screen freeze).
   - Version 2.4: Added EN/HU localization toggle tracking global configuration state from localStorage.
+  - Version 2.5: Aligned language button, flipped EN/HU label logic, set default lang via navigator.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -47,7 +48,7 @@
 
     #lang-btn {
       position: absolute;
-      top: 20px;
+      top: 25px;
       right: 20px;
       padding: 10px 15px;
       background-color: rgba(255, 255, 255, 0.2);
@@ -178,7 +179,10 @@
       const langBtn = document.getElementById('lang-btn');
       const backBtnText = document.getElementById('back-btn-text');
 
-      let currentLang = localStorage.getItem('appLang') || 'en';
+      let currentLang = localStorage.getItem('appLang');
+      if (!currentLang) {
+        currentLang = navigator.language.toLowerCase().startsWith('hu') ? 'hu' : 'en';
+      }
       const fDict = {
         'en': {
           'tap': 'Tap anywhere to begin AR',
@@ -191,7 +195,7 @@
       };
 
       function updateFLang() {
-        langBtn.innerText = currentLang === 'en' ? 'EN' : 'HU';
+        langBtn.innerText = currentLang === 'en' ? 'HU' : 'EN';
         // Check if overlay is already removed via display: none
         if (overlay.style.display !== 'none') {
           overlay.innerText = fDict[currentLang].tap;
