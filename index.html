@@ -24,6 +24,7 @@
   Version: 1.21 - Added CSS animations to popups and animated loading UI during GLB loading.
   Version: 1.22 - Shifted <model-viewer> module up by 20% visually via CSS offset constraints.
   Version: 1.23 - Reduced <model-viewer> upward layout shift from 20% to 10%.
+  Version: 1.24 - Added comprehensive EN/HU language toggle with localStorage state mapping.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -100,6 +101,30 @@
     }
 
     /* Top Right Hamburger Menu */
+    #lang-btn {
+      position: absolute;
+      top: 20px;
+      right: 70px;
+      background: transparent;
+      border: 1px solid white;
+      color: white;
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 13px;
+      font-weight: bold;
+      font-family: sans-serif;
+      cursor: pointer;
+      z-index: 101;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      box-sizing: border-box;
+      transition: background 0.2s;
+    }
+    #lang-btn:active {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
     #menu-btn {
       position: absolute;
       top: 20px;
@@ -442,6 +467,7 @@
 
   <img id="logo" src="logo.png" alt="AI_X Logo">
 
+  <button id="lang-btn" aria-label="Language">EN</button>
   <button id="menu-btn" aria-label="Menu">
     <svg viewBox="0 0 24 24" width="30" height="30">
       <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
@@ -503,7 +529,7 @@
       <div class="loading-text">LOADING...</div>
     </div>
 
-    <div id="version-display">v1.23 | developed by Ádám Pálvölgyi</div>
+    <div id="version-display">v1.24 | developed by Ádám Pálvölgyi</div>
 
     <button slot="ar-button" id="ar-button">Open in AR</button>
     <button id="alt-ar-button">Alternate AR</button>
@@ -530,6 +556,51 @@
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 
   <script>
+    const langDict = {
+      'en': {
+        'copy_link': 'Copy Link',
+        'link_copied': 'Link copied!',
+        'show_qr': 'Show QR Code',
+        'hide_qr': 'Hide QR Code',
+        'share': 'Share',
+        'install': 'Install Webapp',
+        'cookies': 'We do not use cookies',
+        'install_p': 'To install on this device, tap your browser\'s <strong>Share</strong> icon and select <strong>Add to Home Screen</strong>.',
+        'close': 'Close',
+        'loading': 'LOADING...',
+        'dev': 'developed by Ádám Pálvölgyi',
+        'open_ar': 'Open in AR',
+        'loading_ar': 'Loading AR...',
+        'error_loading': 'Error Loading',
+        'alt_ar': 'Alternate AR',
+        'instr_1': '1. Scan the wall until the model appears.<br>2. Drag the model to align it with the poster.',
+        'qr_desktop': 'View in AR',
+        'project': 'Project'
+      },
+      'hu': {
+        'copy_link': 'Hivatkozás másolása',
+        'link_copied': 'Link másolva!',
+        'show_qr': 'QR Kód mutatása',
+        'hide_qr': 'QR Kód elrejtése',
+        'share': 'Megosztás',
+        'install': 'Alkalmazás telepítése',
+        'cookies': 'Nem használunk sütiket',
+        'install_p': 'A telepítéshez bökj a böngésző <strong>Megosztás</strong> ikonjára, majd válaszd a <strong>Hozzáadás a kezdőképernyőhöz</strong> lehetőséget.',
+        'close': 'Bezárás',
+        'loading': 'BETÖLTÉS...',
+        'dev': 'fejlesztette: Pálvölgyi Ádám',
+        'open_ar': 'Megnyitás AR-ben',
+        'loading_ar': 'AR betöltése...',
+        'error_loading': 'Hiba a betöltéskor',
+        'alt_ar': 'Alternatív AR',
+        'instr_1': '1. Vizsgáld a falat a kamerával, amíg a modell meg nem jelenik.<br>2. Húzd a modellt a poszterre, hogy illeszkedjen.',
+        'qr_desktop': 'Megtekintés AR-ben',
+        'project': 'Projekt'
+      }
+    };
+
+    let currentLang = localStorage.getItem('appLang') || 'en';
+
     const viewer = document.getElementById('exhibition-viewer');
     const arUiContainer = document.getElementById('ar-ui-container');
     const ghostImage = document.getElementById('ghost-image');
@@ -541,6 +612,7 @@
     const loadingOverlay = document.getElementById('loading-overlay');
 
     // Menu DOM Elements
+    const langBtn = document.getElementById('lang-btn');
     const menuBtn = document.getElementById('menu-btn');
     const menuPopup = document.getElementById('menu-popup');
     const installBtn = document.getElementById('install-btn');
@@ -548,6 +620,50 @@
     const menuQrBtn = document.getElementById('menu-qr-btn');
     const menuQrImage = document.getElementById('menu-qr-image');
     const shareBtn = document.getElementById('share-btn');
+
+    function refreshLanguage() {
+      langBtn.innerText = currentLang === 'en' ? 'EN' : 'HU';
+      copyLinkBtn.innerText = langDict[currentLang].copy_link;
+      
+      if (menuQrImage.style.display === 'block') {
+        menuQrBtn.innerText = langDict[currentLang].hide_qr;
+      } else {
+        menuQrBtn.innerText = langDict[currentLang].show_qr;
+      }
+      
+      shareBtn.innerText = langDict[currentLang].share;
+      installBtn.innerText = langDict[currentLang].install;
+      document.querySelector('.cookie-statement').innerText = langDict[currentLang].cookies;
+      document.querySelector('#custom-install-popup p').innerHTML = langDict[currentLang].install_p;
+      document.getElementById('close-install-popup').innerText = langDict[currentLang].close;
+      document.querySelector('.loading-text').innerText = langDict[currentLang].loading;
+      
+      const vText = document.getElementById('version-display').innerText.split(' | ')[0];
+      document.getElementById('version-display').innerText = `${vText} | ${langDict[currentLang].dev}`;
+      
+      if (!arButton.classList.contains('loading') && arButton.innerText !== langDict['en'].error_loading && arButton.innerText !== langDict['hu'].error_loading) {
+        arButton.innerText = langDict[currentLang].open_ar;
+      } else if (arButton.classList.contains('loading')) {
+        arButton.innerText = langDict[currentLang].loading_ar;
+      } else {
+        arButton.innerText = langDict[currentLang].error_loading;
+      }
+      
+      altArButton.innerText = langDict[currentLang].alt_ar;
+      instructions.innerHTML = langDict[currentLang].instr_1;
+      document.querySelector('#desktop-qr-container p').innerText = langDict[currentLang].qr_desktop;
+      
+      const pBtns = document.querySelectorAll('.project-btn');
+      pBtns.forEach((btn, idx) => {
+        btn.innerText = `${langDict[currentLang].project} ${idx + 1}`;
+      });
+    }
+
+    langBtn.addEventListener('click', () => {
+      currentLang = currentLang === 'en' ? 'hu' : 'en';
+      localStorage.setItem('appLang', currentLang);
+      refreshLanguage();
+    });
 
     let ghostTimeout;
     let currentBlobUrl = null;
@@ -591,8 +707,8 @@
     copyLinkBtn.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(window.location.href);
-        copyLinkBtn.innerText = "Link copied!";
-        setTimeout(() => copyLinkBtn.innerText = "Copy Link", 2000);
+        copyLinkBtn.innerText = langDict[currentLang].link_copied;
+        setTimeout(() => copyLinkBtn.innerText = langDict[currentLang].copy_link, 2000);
       } catch (err) {
         console.error('Failed to copy: ', err);
       }
@@ -602,12 +718,12 @@
     menuQrBtn.addEventListener('click', () => {
       if (menuQrImage.style.display === 'block') {
         menuQrImage.style.display = 'none';
-        menuQrBtn.innerText = "Show QR Code";
+        menuQrBtn.innerText = langDict[currentLang].show_qr;
       } else {
         const currentUrl = encodeURIComponent(window.location.href);
         menuQrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${currentUrl}`;
         menuQrImage.style.display = 'block';
-        menuQrBtn.innerText = "Hide QR Code";
+        menuQrBtn.innerText = langDict[currentLang].hide_qr;
       }
     });
 
@@ -651,7 +767,7 @@
         } else {
           try {
             arButton.classList.add('loading');
-            arButton.innerText = "Loading AR...";
+            arButton.innerText = langDict[currentLang].loading_ar;
 
             const response = await fetch(`models/project${index}.reality`);
             const rawBinary = await response.arrayBuffer();
@@ -666,10 +782,10 @@
 
           } catch (error) {
             console.error(`Failed to fetch project${index}.reality:`, error);
-            arButton.innerText = "Error Loading";
+            arButton.innerText = langDict[currentLang].error_loading;
           } finally {
             arButton.classList.remove('loading');
-            arButton.innerText = "Open in AR";
+            arButton.innerText = langDict[currentLang].open_ar;
           }
         }
       }
@@ -692,6 +808,9 @@
 
     const targetBtn = projectList.children[initialProject - 1];
     if (targetBtn) targetBtn.classList.add('active');
+    
+    refreshLanguage();
+
     loadProject(initialProject);
 
     viewer.addEventListener('ar-status', (event) => {

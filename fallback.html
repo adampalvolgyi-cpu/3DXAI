@@ -4,6 +4,7 @@
   - Removed Target 1 to prevent array-out-of-bounds rendering crashes with single-target files.
   - Preserved MindAR intrinsic physics scale during decoupling to prevent warping.
   - Delayed look-controls boot natively post-permissions to ensure valid DeviceOrientation parsing (fixing the screen freeze).
+  - Version 2.4: Added EN/HU localization toggle tracking global configuration state from localStorage.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -42,6 +43,25 @@
       display: flex;
       align-items: center;
       gap: 8px;
+    }
+
+    #lang-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      padding: 10px 15px;
+      background-color: rgba(255, 255, 255, 0.2);
+      color: #fff;
+      border: 1px solid #fff;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 14px;
+      z-index: 1000;
+      transition: background 0.2s;
+    }
+    #lang-btn:active {
+      background: rgba(255, 255, 255, 0.4);
     }
 
     #tap-overlay {
@@ -155,6 +175,37 @@
       `);
 
       const overlay = document.getElementById('tap-overlay');
+      const langBtn = document.getElementById('lang-btn');
+      const backBtnText = document.getElementById('back-btn-text');
+
+      let currentLang = localStorage.getItem('appLang') || 'en';
+      const fDict = {
+        'en': {
+          'tap': 'Tap anywhere to begin AR',
+          'exit': 'Exit Alternate AR'
+        },
+        'hu': {
+          'tap': 'Koppints bárhova az AR elindításához',
+          'exit': 'Kilépés az alternatív AR-ből'
+        }
+      };
+
+      function updateFLang() {
+        langBtn.innerText = currentLang === 'en' ? 'EN' : 'HU';
+        // Check if overlay is already removed via display: none
+        if (overlay.style.display !== 'none') {
+          overlay.innerText = fDict[currentLang].tap;
+        }
+        backBtnText.innerText = fDict[currentLang].exit;
+      }
+
+      langBtn.addEventListener('click', () => {
+        currentLang = currentLang === 'en' ? 'hu' : 'en';
+        localStorage.setItem('appLang', currentLang);
+        updateFLang();
+      });
+
+      updateFLang();
 
       const attemptPermit = async () => {
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -184,12 +235,13 @@
 
 <body>
   <div id="tap-overlay">Tap anywhere to begin AR</div>
+  <button id="lang-btn">EN</button>
 
   <a id="back-btn" href="#">
     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
       <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
     </svg>
-    Exit Alternate AR
+    <span id="back-btn-text">Exit Alternate AR</span>
   </a>
 
   <!-- Hardcoded Engine ensuring WebRTC Hardware Access loads immediately -->
