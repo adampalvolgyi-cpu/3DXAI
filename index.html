@@ -27,6 +27,7 @@
   Version: 1.24 - Added comprehensive EN/HU language toggle with localStorage state mapping.
   Version: 1.25 - Aligned language button, flipped EN/HU label logic, set default lang via navigator, shifted layout down by 5%, enabled USDZ fallback.
   Version: 1.26 - Appended favicon.png as primary viewport icon.
+  Version: 1.27 - Added apple-touch-icon for iOS bookmarking.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -35,6 +36,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="favicon.png">
   <title>AI_X AR Exhibition</title>
   <style>
     @keyframes customPopupFadeIn {
@@ -532,7 +534,7 @@
       <div class="loading-text">LOADING...</div>
     </div>
 
-    <div id="version-display">v1.26 | developed by Ádám Pálvölgyi</div>
+    <div id="version-display">v1.27 | developed by Ádám Pálvölgyi</div>
 
     <button slot="ar-button" id="ar-button">Open in AR</button>
     <button id="alt-ar-button">Alternate AR</button>
