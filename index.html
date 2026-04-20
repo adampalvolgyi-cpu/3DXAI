@@ -29,6 +29,7 @@
   Version: 1.26 - Appended favicon.png as primary viewport icon.
   Version: 1.27 - Added apple-touch-icon for iOS bookmarking.
   Version: 1.28 - Set white-space nowrap on AR buttons, mapped projectNames config array, swapped wall tracking to floor tracking, stripped 0.0001 scale mask.
+  Version: 1.29 - Stripped manual UI event listeners for ar-status to restore native unadulterated model-viewer tracking flows.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -372,47 +373,6 @@
       font-weight: bold;
     }
 
-    #ar-ui-container {
-      display: none;
-      position: absolute;
-      inset: 0;
-      z-index: 1000;
-      pointer-events: none;
-    }
-
-    .ar-ui-layer {
-      position: absolute;
-      inset: 0;
-      z-index: 20;
-      pointer-events: none;
-    }
-
-    #instructions {
-      position: absolute;
-      top: calc(10vh + 30px);
-      top: calc(10dvh + 30px);
-      width: 100%;
-      text-align: center;
-      color: white;
-      font-family: sans-serif;
-      font-size: 16px;
-      line-height: 1.5;
-      text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
-      pointer-events: none;
-    }
-
-    #ghost-image {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 33.6vw;
-      max-width: 168px;
-      opacity: 0.25;
-      border: 2px dashed #fff;
-      pointer-events: none;
-    }
-
     #version-display {
       position: absolute;
       bottom: 5px;
@@ -538,20 +498,10 @@
       <div class="loading-text">LOADING...</div>
     </div>
 
-    <div id="version-display">v1.28 | developed by Ádám Pálvölgyi</div>
+    <div id="version-display">v1.29 | developed by Ádám Pálvölgyi</div>
 
     <button slot="ar-button" id="ar-button">Open in AR</button>
     <button id="alt-ar-button">Alternate AR</button>
-
-    <div id="ar-ui-container">
-      <div id="calibration-state" class="ar-ui-layer">
-        <div id="instructions">
-          1. Scan the wall until the model appears.<br>
-          2. Drag the model to align it with the poster.
-        </div>
-        <img id="ghost-image" src="anchor.jpg" alt="Ghost Anchor">
-      </div>
-    </div>
 
   </model-viewer>
 
@@ -640,9 +590,6 @@
     }
 
     const viewer = document.getElementById('exhibition-viewer');
-    const arUiContainer = document.getElementById('ar-ui-container');
-    const ghostImage = document.getElementById('ghost-image');
-    const instructions = document.getElementById('instructions');
     const projectList = document.getElementById('project-list');
     const arButton = document.getElementById('ar-button');
     const altArButton = document.getElementById('alt-ar-button');
@@ -688,7 +635,6 @@
       }
 
       altArButton.innerText = langDict[currentLang].alt_ar;
-      instructions.innerHTML = langDict[currentLang].instr_1;
       document.querySelector('#desktop-qr-container p').innerText = langDict[currentLang].qr_desktop;
 
       const pBtns = document.querySelectorAll('.project-btn');
@@ -708,7 +654,6 @@
       refreshLanguage();
     });
 
-    let ghostTimeout;
     let currentBlobUrl = null;
 
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -856,26 +801,6 @@
     refreshLanguage();
 
     loadProject(initialProject);
-
-    viewer.addEventListener('ar-status', (event) => {
-      if (event.detail.status === 'not-presenting') {
-        arUiContainer.style.display = 'none';
-        clearTimeout(ghostTimeout);
-      } else if (event.detail.status === 'session-started') {
-        arUiContainer.style.display = 'block';
-        ghostImage.style.display = 'block';
-        instructions.style.display = 'block';
-
-        ghostTimeout = setTimeout(() => {
-          ghostImage.style.display = 'none';
-          instructions.style.display = 'none';
-        }, 10000);
-      } else if (event.detail.status === 'object-placed') {
-        ghostImage.style.display = 'none';
-        instructions.style.display = 'none';
-        clearTimeout(ghostTimeout);
-      }
-    });
 
     // Navigate to fallback WebAR
     altArButton.addEventListener('click', () => {
