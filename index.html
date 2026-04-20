@@ -28,6 +28,7 @@
   Version: 1.25 - Aligned language button, flipped EN/HU label logic, set default lang via navigator, shifted layout down by 5%, enabled USDZ fallback.
   Version: 1.26 - Appended favicon.png as primary viewport icon.
   Version: 1.27 - Added apple-touch-icon for iOS bookmarking.
+  Version: 1.28 - Set white-space nowrap on AR buttons, mapped projectNames config array, swapped wall tracking to floor tracking, stripped 0.0001 scale mask.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -300,6 +301,7 @@
       border-radius: 8px;
       cursor: pointer;
       z-index: 100;
+      white-space: nowrap;
       transition: background-color 0.3s, opacity 0.3s;
     }
 
@@ -322,6 +324,7 @@
       cursor: pointer;
       z-index: 100;
       font-family: sans-serif;
+      white-space: nowrap;
       transition: background-color 0.3s;
     }
 
@@ -528,14 +531,14 @@
     <button class="close-btn" id="close-install-popup">Close</button>
   </div>
 
-  <model-viewer id="exhibition-viewer" bounds="tight" ar ar-placement="wall" ar-scale="fixed" camera-controls
+  <model-viewer id="exhibition-viewer" bounds="tight" ar ar-placement="floor" ar-scale="fixed" camera-controls
     alt="Digital Art 3D Model">
 
     <div id="loading-overlay">
       <div class="loading-text">LOADING...</div>
     </div>
 
-    <div id="version-display">v1.27 | developed by Ádám Pálvölgyi</div>
+    <div id="version-display">v1.28 | developed by Ádám Pálvölgyi</div>
 
     <button slot="ar-button" id="ar-button">Open in AR</button>
     <button id="alt-ar-button">Alternate AR</button>
@@ -562,6 +565,32 @@
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 
   <script>
+    // === PROJECT CONFIGURATION ===
+    // Define the custom names of the projects here. 
+    // If you rename them from "Project X", the custom name will replace the default EN/HU numbering.
+    const projectNames = [
+      "Project 1",
+      "Dombormű",
+      "Project 3",
+      "Project 4",
+      "Project 5",
+      "Project 6",
+      "Project 7",
+      "Project 8",
+      "Project 9",
+      "Project 10",
+      "Project 11",
+      "Project 12",
+      "Project 13",
+      "Project 14",
+      "Project 15",
+      "Project 16",
+      "Project 17",
+      "Project 18",
+      "Project 19",
+      "Project 20"
+    ];
+
     const langDict = {
       'en': {
         'copy_link': 'Copy Link',
@@ -664,7 +693,12 @@
 
       const pBtns = document.querySelectorAll('.project-btn');
       pBtns.forEach((btn, idx) => {
-        btn.innerText = `${langDict[currentLang].project} ${idx + 1}`;
+        const defaultTitle = `Project ${idx + 1}`;
+        if (projectNames[idx] === defaultTitle) {
+          btn.innerText = `${langDict[currentLang].project} ${idx + 1}`;
+        } else {
+          btn.innerText = projectNames[idx];
+        }
       });
     }
 
@@ -801,10 +835,11 @@
     }
 
     // Build the dynamic project menu
-    for (let i = 1; i <= 20; i++) {
+    projectNames.forEach((name, idx) => {
+      const i = idx + 1;
       const btn = document.createElement('button');
       btn.className = 'project-btn';
-      btn.innerText = `Project ${i}`;
+      btn.innerText = name;
 
       btn.addEventListener('click', () => {
         document.querySelectorAll('.project-btn').forEach(b => b.classList.remove('active'));
@@ -813,7 +848,7 @@
       });
 
       projectList.appendChild(btn);
-    }
+    });
 
     const targetBtn = projectList.children[initialProject - 1];
     if (targetBtn) targetBtn.classList.add('active');
@@ -825,14 +860,11 @@
     viewer.addEventListener('ar-status', (event) => {
       if (event.detail.status === 'not-presenting') {
         arUiContainer.style.display = 'none';
-        viewer.setAttribute('scale', '1 1 1');
         clearTimeout(ghostTimeout);
       } else if (event.detail.status === 'session-started') {
         arUiContainer.style.display = 'block';
         ghostImage.style.display = 'block';
         instructions.style.display = 'block';
-
-        viewer.setAttribute('scale', '0.0001 0.0001 0.0001');
 
         ghostTimeout = setTimeout(() => {
           ghostImage.style.display = 'none';
@@ -841,8 +873,6 @@
       } else if (event.detail.status === 'object-placed') {
         ghostImage.style.display = 'none';
         instructions.style.display = 'none';
-
-        viewer.setAttribute('scale', '1 1 1');
         clearTimeout(ghostTimeout);
       }
     });
