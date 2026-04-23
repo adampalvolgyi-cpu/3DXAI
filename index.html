@@ -31,6 +31,7 @@
   Version: 1.28 - Set white-space nowrap on AR buttons, mapped projectNames config array, swapped wall tracking to floor tracking, stripped 0.0001 scale mask.
   Version: 1.29 - Stripped manual UI event listeners for ar-status to restore native unadulterated model-viewer tracking flows.
   Version: 1.30 - Patched iOS Chrome logic. Added universal fetch validity check handling 404 fallbacks for USDZ generation.
+  Version: 1.31 - Expanded project array to 22 entries. Hidden Alternative AR button via CSS enforcement.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -313,6 +314,7 @@
     }
 
     #alt-ar-button {
+      display: none !important;
       position: absolute;
       bottom: 160px;
       left: 50%;
@@ -499,7 +501,7 @@
       <div class="loading-text">LOADING...</div>
     </div>
 
-    <div id="version-display">v1.30 | developed by Ádám Pálvölgyi</div>
+    <div id="version-display">v1.31 | developed by Ádám Pálvölgyi</div>
 
     <button slot="ar-button" id="ar-button">Open in AR</button>
     <button id="alt-ar-button">Alternate AR</button>
@@ -532,14 +534,16 @@
       "Papp Violetta/Tóth Zsófia",
       "Mikló Dávid/Kis Flóra",
       "Baross Kincső/Piti Mira",
-      "Project 13",
-      "Project 14",
+      "Takács Dóra/Tuli Kristóf",
+      "Nagy Veronika/Rákóczi Fanni/Méng Vanda",
       "Project 15",
       "Project 16",
       "Project 17",
       "Project 18",
       "Project 19",
-      "Project 20"
+      "Project 20",
+      "Project 21",
+      "Project 22"
     ];
 
     const langDict = {
