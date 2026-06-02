@@ -32,6 +32,7 @@
   Version: 1.29 - Stripped manual UI event listeners for ar-status to restore native unadulterated model-viewer tracking flows.
   Version: 1.30 - Patched iOS Chrome logic. Added universal fetch validity check handling 404 fallbacks for USDZ generation.
   Version: 1.31 - Expanded project array to 22 entries. Hidden Alternative AR button via CSS enforcement.
+  Version: 1.32 - Added shortcut button 'Féléves terv' ('Final plan') to hamburger menu to redirect back to main index.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -453,6 +454,7 @@
     <button id="share-btn">Share</button>
     <!-- New PWA Install Button -->
     <button id="install-btn">Install Webapp</button>
+    <button id="final-btn">Féléves terv</button>
 
     <div class="credits">
       <strong>Ádám Pálvölgyi</strong>
@@ -554,6 +556,7 @@
         'hide_qr': 'Hide QR Code',
         'share': 'Share',
         'install': 'Install Webapp',
+        'final_btn': 'Final plan',
         'cookies': 'We do not use cookies',
         'install_p': 'To install on this device, tap your browser\'s <strong>Share</strong> icon and select <strong>Add to Home Screen</strong>.',
         'close': 'Close',
@@ -574,6 +577,7 @@
         'hide_qr': 'QR Kód elrejtése',
         'share': 'Megosztás',
         'install': 'Alkalmazás telepítése',
+        'final_btn': 'Féléves terv',
         'cookies': 'Nem használunk sütiket',
         'install_p': 'A telepítéshez bökj a böngésző <strong>Megosztás</strong> ikonjára, majd válaszd a <strong>Hozzáadás a kezdőképernyőhöz</strong> lehetőséget.',
         'close': 'Bezárás',
@@ -610,6 +614,7 @@
     const menuQrBtn = document.getElementById('menu-qr-btn');
     const menuQrImage = document.getElementById('menu-qr-image');
     const shareBtn = document.getElementById('share-btn');
+    const finalBtn = document.getElementById('final-btn');
 
     function refreshLanguage() {
       langBtn.innerText = currentLang === 'en' ? 'HU' : 'EN';
@@ -623,6 +628,7 @@
 
       shareBtn.innerText = langDict[currentLang].share;
       installBtn.innerText = langDict[currentLang].install;
+      finalBtn.innerText = langDict[currentLang].final_btn;
       document.querySelector('.cookie-statement').innerText = langDict[currentLang].cookies;
       document.querySelector('#custom-install-popup p').innerHTML = langDict[currentLang].install_p;
       document.getElementById('close-install-popup').innerText = langDict[currentLang].close;
@@ -680,6 +686,10 @@
     installBtn.addEventListener('click', () => {
       menuPopup.style.display = 'none';
       customInstallPopup.style.display = 'block';
+    });
+
+    finalBtn.addEventListener('click', () => {
+      window.location.href = '../index.html';
     });
 
     closeInstallPopupBtn.addEventListener('click', () => {
