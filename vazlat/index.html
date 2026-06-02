@@ -33,6 +33,7 @@
   Version: 1.30 - Patched iOS Chrome logic. Added universal fetch validity check handling 404 fallbacks for USDZ generation.
   Version: 1.31 - Expanded project array to 22 entries. Hidden Alternative AR button via CSS enforcement.
   Version: 1.32 - Added shortcut button 'Féléves terv' ('Final plan') to hamburger menu to redirect back to main index.
+  Version: 1.33 - Updated version display to v1.33. Added localized centered top header phase title 'Vázlatterv' / 'Midterm plan' with mobile scaling support.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -108,6 +109,31 @@
       max-height: 40px;
       z-index: 100;
       pointer-events: none;
+    }
+
+    /* Centered top phase title */
+    #page-title {
+      position: absolute;
+      top: 25px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-family: sans-serif;
+      font-size: 15px;
+      font-weight: bold;
+      letter-spacing: 1.5px;
+      z-index: 100;
+      pointer-events: none;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 480px) {
+      #page-title {
+        font-size: 11px;
+        top: 28px;
+        letter-spacing: 1px;
+      }
     }
 
     /* Top Right Hamburger Menu */
@@ -439,6 +465,7 @@
 <body>
 
   <img id="logo" src="logo.png" alt="AI_X Logo">
+  <div id="page-title">Vázlatterv</div>
 
   <button id="lang-btn" aria-label="Language">EN</button>
   <button id="menu-btn" aria-label="Menu">
@@ -503,7 +530,7 @@
       <div class="loading-text">LOADING...</div>
     </div>
 
-    <div id="version-display">v1.32 | developed by Ádám Pálvölgyi</div>
+    <div id="version-display">v1.33 | developed by Ádám Pálvölgyi</div>
 
     <button slot="ar-button" id="ar-button">Open in AR</button>
     <button id="alt-ar-button">Alternate AR</button>
@@ -557,6 +584,7 @@
         'share': 'Share',
         'install': 'Install Webapp',
         'final_btn': 'Final plan',
+        'page_title': 'Midterm plan',
         'cookies': 'We do not use cookies',
         'install_p': 'To install on this device, tap your browser\'s <strong>Share</strong> icon and select <strong>Add to Home Screen</strong>.',
         'close': 'Close',
@@ -578,6 +606,7 @@
         'share': 'Megosztás',
         'install': 'Alkalmazás telepítése',
         'final_btn': 'Féléves terv',
+        'page_title': 'Vázlatterv',
         'cookies': 'Nem használunk sütiket',
         'install_p': 'A telepítéshez bökj a böngésző <strong>Megosztás</strong> ikonjára, majd válaszd a <strong>Hozzáadás a kezdőképernyőhöz</strong> lehetőséget.',
         'close': 'Bezárás',
@@ -615,6 +644,7 @@
     const menuQrImage = document.getElementById('menu-qr-image');
     const shareBtn = document.getElementById('share-btn');
     const finalBtn = document.getElementById('final-btn');
+    const pageTitle = document.getElementById('page-title');
 
     function refreshLanguage() {
       langBtn.innerText = currentLang === 'en' ? 'HU' : 'EN';
@@ -629,6 +659,7 @@
       shareBtn.innerText = langDict[currentLang].share;
       installBtn.innerText = langDict[currentLang].install;
       finalBtn.innerText = langDict[currentLang].final_btn;
+      pageTitle.innerText = langDict[currentLang].page_title;
       document.querySelector('.cookie-statement').innerText = langDict[currentLang].cookies;
       document.querySelector('#custom-install-popup p').innerHTML = langDict[currentLang].install_p;
       document.getElementById('close-install-popup').innerText = langDict[currentLang].close;
