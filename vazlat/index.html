@@ -1,0 +1,822 @@
+<!-- 
+  Version History:
+  Version: 1.0 - Initial setup with DOM Overlay, state segregation, and synthetic click hit-testing.
+  Version: 1.1 - Removed interaction blocker to re-enable native WebXR touch gestures.
+  Version: 1.2 - Added persistent version display element to the DOM.
+  Version: 1.3 - Fixed Exit AR pointer blocking, added bounds="tight", implemented 0.0001 scale pre-hiding.
+  Version: 1.4 - Fixed premature UI teardown exclusively to 'not-presenting' state.
+  Version: 1.5 - Reverted to auto-anchoring, removed manual placement buttons, added auto-hide logic for ghost anchor.
+  Version: 1.6 - Shrunk ghost image by 20%, added ios-src attribute for RealityKit fallback.
+  Version: 1.7 - Reverted parallax instructions, added dynamic horizontal scroll menu for 20 projects.
+  Version: 1.8 - Attempted JS native bypass for iOS MIME types (Failed).
+  Version: 1.9 - Attempted dual-button DOM separation for Safari User Gesture rules (Failed).
+  Version: 1.10 - Reverted to v1.7. Removed scale hashes. Implemented Absolute URL resolution to fix Safari ARQL pathing bug.
+  Version: 1.11 - Removed Absolute URL logic. Implemented Async Fetch & Blob Forgery to manually enforce Apple MIME types.
+  Version: 1.12 - Appended developer credit to version. Added interactive GPU-accelerated blurred blob background.
+  Version: 1.13 - Swapped CSS blur for SVG Gaussian filter to fix Webkit dimming bug. Added desktop-responsive blob caps.
+  Version: 1.14 - Abandoned DOM filters. Implemented HTML5 Canvas API for guaranteed cross-device vibrant blur rendering.
+  Version: 1.15 - Reverted background to static v1.11 state, removed Canvas/Blob animation logic, retained developer credit.
+  Version: 1.16 - Updated title/credits. Added desktop CSS media queries, REST API QR pop-up, and iOS Chrome/Safari branching logic.
+  Version: 1.17 - Re-introduced scale-hiding logic. Shrunk ghost image. Deep Linking (?p=X). Native sharing APIs.
+  Version: 1.18 - Reduced desktop QR by 50%. Restyled hamburger menu to 156px width with inverted buttons. Added PWA Install logic, SVG credit icons, and cookie statement.
+  Version: 1.19 - Added Alternative AR button routing to A-Frame/AR.js fallback.
+  Version: 1.20 - Moved install logic to custom modal; lazy load webapp.gif on hamburger click.
+  Version: 1.21 - Added CSS animations to popups and animated loading UI during GLB loading.
+  Version: 1.22 - Shifted <model-viewer> module up by 20% visually via CSS offset constraints.
+  Version: 1.23 - Reduced <model-viewer> upward layout shift from 20% to 10%.
+  Version: 1.24 - Added comprehensive EN/HU language toggle with localStorage state mapping.
+  Version: 1.25 - Aligned language button, flipped EN/HU label logic, set default lang via navigator, shifted layout down by 5%, enabled USDZ fallback.
+  Version: 1.26 - Appended favicon.png as primary viewport icon.
+  Version: 1.27 - Added apple-touch-icon for iOS bookmarking.
+  Version: 1.28 - Set white-space nowrap on AR buttons, mapped projectNames config array, swapped wall tracking to floor tracking, stripped 0.0001 scale mask.
+  Version: 1.29 - Stripped manual UI event listeners for ar-status to restore native unadulterated model-viewer tracking flows.
+  Version: 1.30 - Patched iOS Chrome logic. Added universal fetch validity check handling 404 fallbacks for USDZ generation.
+  Version: 1.31 - Expanded project array to 22 entries. Hidden Alternative AR button via CSS enforcement.
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="favicon.png">
+  <title>AI_X AR</title>
+  <style>
+    @keyframes customPopupFadeIn {
+      0% {
+        opacity: 0;
+        transform: translate(-50%, -45%);
+      }
+
+      100% {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+      }
+    }
+
+    @keyframes menuFadeIn {
+      0% {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes pulseText {
+      0% {
+        opacity: 0.5;
+        transform: scale(0.95);
+      }
+
+      100% {
+        opacity: 1;
+        transform: scale(1.05);
+      }
+    }
+
+    body,
+    html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #111;
+    }
+
+    model-viewer {
+      position: absolute;
+      top: -10vh;
+      top: -10dvh;
+      left: 0;
+      width: 100%;
+      height: 110vh;
+      height: 110dvh;
+    }
+
+    /* Top Left Logo */
+    #logo {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      max-height: 40px;
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    /* Top Right Hamburger Menu */
+    #lang-btn {
+      position: absolute;
+      top: 25px;
+      right: 70px;
+      background: transparent;
+      border: 1px solid white;
+      color: white;
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 13px;
+      font-weight: bold;
+      font-family: sans-serif;
+      cursor: pointer;
+      z-index: 101;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      box-sizing: border-box;
+      transition: background 0.2s;
+    }
+
+    #lang-btn:active {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    #menu-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      z-index: 101;
+      fill: white;
+      padding: 5px;
+    }
+
+    /* Pop-up Menu Modal */
+    #menu-popup {
+      display: none;
+      position: absolute;
+      top: 60px;
+      right: 20px;
+      background: white;
+      border-radius: 8px;
+      padding: 15px;
+      width: 156px;
+      /* Reduced by exactly 40% from 260px */
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      font-family: sans-serif;
+      font-size: 13px;
+      color: #333;
+      animation: menuFadeIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    #menu-popup button {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 8px;
+      border: none;
+      background: #000;
+      color: #fff;
+      border-radius: 6px;
+      /* Inverted styling */
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 13px;
+      transition: background 0.2s;
+    }
+
+    #menu-popup button:active {
+      background: #444;
+    }
+
+    #menu-popup a {
+      color: #000;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+
+    #menu-popup a:hover {
+      opacity: 0.6;
+    }
+
+    #menu-popup .credits {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #eee;
+      line-height: 1.4;
+      text-align: center;
+      /* Centered alignment */
+    }
+
+    .icon-row {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 5px;
+      margin-bottom: 10px;
+    }
+
+    #menu-qr-image {
+      display: none;
+      width: 100%;
+      margin-top: 10px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+    }
+
+    .cookie-statement {
+      margin-top: 15px;
+      font-size: 9px;
+      text-align: center;
+      color: #888;
+    }
+
+    #loading-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: none;
+      z-index: 50;
+      pointer-events: none;
+    }
+
+    .loading-text {
+      color: white;
+      font-family: sans-serif;
+      font-size: 14px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      animation: pulseText 0.8s infinite alternate ease-in-out;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+    }
+
+    #custom-install-popup {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      width: 280px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      z-index: 2000;
+      font-family: sans-serif;
+      color: #333;
+      text-align: center;
+      animation: customPopupFadeIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    #custom-install-popup img {
+      width: 100%;
+      max-width: 200px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+    }
+
+    #custom-install-popup p {
+      font-size: 14px;
+      line-height: 1.5;
+      margin-bottom: 15px;
+    }
+
+    #custom-install-popup button.close-btn {
+      background: #000;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      width: 100%;
+    }
+
+    #ar-button {
+      position: absolute;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #fff;
+      color: #000;
+      padding: 15px 30px;
+      font-size: 18px;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      z-index: 100;
+      white-space: nowrap;
+      transition: background-color 0.3s, opacity 0.3s;
+    }
+
+    #ar-button.loading {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    #alt-ar-button {
+      display: none !important;
+      position: absolute;
+      bottom: 160px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: transparent;
+      color: #fff;
+      padding: 10px 20px;
+      font-size: 14px;
+      border: 1px solid #fff;
+      border-radius: 8px;
+      cursor: pointer;
+      z-index: 100;
+      font-family: sans-serif;
+      white-space: nowrap;
+      transition: background-color 0.3s;
+    }
+
+    #alt-ar-button:active {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+
+    #project-list {
+      position: absolute;
+      bottom: 25px;
+      left: 0;
+      width: 100%;
+      height: 60px;
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 0 20px;
+      box-sizing: border-box;
+      z-index: 100;
+      align-items: center;
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    #project-list::-webkit-scrollbar {
+      display: none;
+    }
+
+    .project-btn {
+      flex-shrink: 0;
+      background-color: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: 1px solid #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: sans-serif;
+      font-size: 14px;
+      transition: background-color 0.2s, color 0.2s;
+    }
+
+    .project-btn.active {
+      background-color: #fff;
+      color: #000;
+      font-weight: bold;
+    }
+
+    #version-display {
+      position: absolute;
+      bottom: 5px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      color: rgba(255, 255, 255, 0.5);
+      font-family: sans-serif;
+      font-size: 10px;
+      z-index: 9999;
+      pointer-events: none;
+    }
+
+    #desktop-qr-container {
+      display: none;
+    }
+
+    /* Desktop-Exclusive CSS Constraints */
+    @media (hover: hover) and (pointer: fine) {
+      #ar-button {
+        display: none !important;
+      }
+
+      #alt-ar-button {
+        display: none !important;
+      }
+
+      #desktop-qr-container {
+        display: block;
+        position: absolute;
+        right: 30px;
+        bottom: 100px;
+        background: white;
+        padding: 15px;
+        border-radius: 12px;
+        text-align: center;
+        z-index: 100;
+        font-family: sans-serif;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      }
+
+      #desktop-qr-container p {
+        margin: 0 0 10px 0;
+        font-weight: bold;
+        font-size: 16px;
+        color: #000;
+      }
+
+      /* Reduced 50% from 300px to 150px */
+      #desktop-qr-image {
+        width: 150px;
+        height: 150px;
+        display: block;
+        margin: 0 auto;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <img id="logo" src="logo.png" alt="AI_X Logo">
+
+  <button id="lang-btn" aria-label="Language">EN</button>
+  <button id="menu-btn" aria-label="Menu">
+    <svg viewBox="0 0 24 24" width="30" height="30">
+      <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
+    </svg>
+  </button>
+
+  <div id="menu-popup">
+    <button id="copy-link-btn">Copy Link</button>
+    <button id="menu-qr-btn">Show QR Code</button>
+    <img id="menu-qr-image" src="" alt="Project QR Code">
+    <button id="share-btn">Share</button>
+    <!-- New PWA Install Button -->
+    <button id="install-btn">Install Webapp</button>
+
+    <div class="credits">
+      <strong>Ádám Pálvölgyi</strong>
+      <div class="icon-row">
+        <a href="mailto:adampalvolgyi@gmail.com" aria-label="Email">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path
+              d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+          </svg>
+        </a>
+        <a href="https://instagram.com/adampalvolgyi" target="_blank" aria-label="Instagram">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path
+              d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2m-.2 2A3.6 3.6 0 0 0 4 7.6v8.8C4 18.4 5.6 20 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6C20 5.6 18.4 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 0 1 1.25 1.25A1.25 1.25 0 0 1 17.25 8 1.25 1.25 0 0 1 16 6.75a1.25 1.25 0 0 1 1.25-1.25M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3z" />
+          </svg>
+        </a>
+      </div>
+
+      <strong>Exploratív Építészeti Tanszék</strong><br>
+      <a href="https://www.explorativ.bme.hu/" target="_blank"
+        style="font-size: 11px; display: block; margin-top: 2px;">bme.hu</a>
+      <div class="icon-row" style="margin-bottom: 0;">
+        <a href="https://instagram.com/explorativ_bme" target="_blank" aria-label="Instagram">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path
+              d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2m-.2 2A3.6 3.6 0 0 0 4 7.6v8.8C4 18.4 5.6 20 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6C20 5.6 18.4 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 0 1 1.25 1.25A1.25 1.25 0 0 1 17.25 8 1.25 1.25 0 0 1 16 6.75a1.25 1.25 0 0 1 1.25-1.25M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3z" />
+          </svg>
+        </a>
+      </div>
+    </div>
+
+    <div class="cookie-statement">We do not use cookies</div>
+  </div>
+
+  <div id="custom-install-popup">
+    <img id="install-tutorial-gif" alt="Install Webapp Tutorial">
+    <p>To install on this device, tap your browser's <strong>Share</strong> icon and select <strong>Add to Home
+        Screen</strong>.</p>
+    <button class="close-btn" id="close-install-popup">Close</button>
+  </div>
+
+  <model-viewer id="exhibition-viewer" bounds="tight" ar ar-placement="floor" ar-scale="fixed" camera-controls
+    alt="Digital Art 3D Model">
+
+    <div id="loading-overlay">
+      <div class="loading-text">LOADING...</div>
+    </div>
+
+    <div id="version-display">v1.32 | developed by Ádám Pálvölgyi</div>
+
+    <button slot="ar-button" id="ar-button">Open in AR</button>
+    <button id="alt-ar-button">Alternate AR</button>
+
+  </model-viewer>
+
+  <div id="desktop-qr-container">
+    <p>View in AR</p>
+    <img id="desktop-qr-image" src="" alt="Scan this QR Code with your phone">
+  </div>
+
+  <div id="project-list"></div>
+
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+
+  <script>
+    // === PROJECT CONFIGURATION ===
+    // Define the custom names of the projects here. 
+    // If you rename them from "Project X", the custom name will replace the default EN/HU numbering.
+    const projectNames = [
+      "Badar Borbála/Erőy Zsófia",
+      "Borissza Gergely/Hornok Brigitta",
+      "Dóró Elizabet/Kliszek Viktória",
+      "Jakab Dalma/Tóth Anna",
+      "Putovits Zsolt/Fejes Alex",
+      "Czipa Borbála/Csiszár Hanna",
+      "Reich Fanni/Mészáros Benjamin",
+      "Farkas Zsuzsa/Kúti Dorottya",
+      "PiringerChristopher/GyőriLevente",
+      "Papp Violetta/Tóth Zsófia",
+      "Mikló Dávid/Kis Flóra",
+      "Baross Kincső/Piti Mira",
+      "Takács Dóra/Tuli Kristóf",
+      "Nagy Veronika/Rákóczi Fanni/Méng Vanda",
+      "Bogdán Lilla/Jakab Sára",
+      "Mosolics Réka/Rajnai Júlia",
+      "Kapczár Botond/Söllei Virág/Zsidró Zsolt",
+      "Orosz Máté/Czunyi Ádám",
+      "Wendler Anna/Szelp Anikó",
+      "Podmanczky Réka/Ruszinkó Dominika",
+      "Kovács Dóra/Horváth Lili",
+      "Lovas Bálint/Fekete Szilárd"
+    ];
+
+    const langDict = {
+      'en': {
+        'copy_link': 'Copy Link',
+        'link_copied': 'Link copied!',
+        'show_qr': 'Show QR Code',
+        'hide_qr': 'Hide QR Code',
+        'share': 'Share',
+        'install': 'Install Webapp',
+        'cookies': 'We do not use cookies',
+        'install_p': 'To install on this device, tap your browser\'s <strong>Share</strong> icon and select <strong>Add to Home Screen</strong>.',
+        'close': 'Close',
+        'loading': 'LOADING...',
+        'dev': 'developed by Ádám Pálvölgyi',
+        'open_ar': 'Open in AR',
+        'loading_ar': 'Loading AR...',
+        'error_loading': 'Error Loading',
+        'alt_ar': 'Alternate AR',
+        'instr_1': '1. Scan the wall until the model appears.<br>2. Drag the model to align it with the poster.',
+        'qr_desktop': 'View in AR',
+        'project': 'Project'
+      },
+      'hu': {
+        'copy_link': 'Hivatkozás másolása',
+        'link_copied': 'Link másolva!',
+        'show_qr': 'QR Kód mutatása',
+        'hide_qr': 'QR Kód elrejtése',
+        'share': 'Megosztás',
+        'install': 'Alkalmazás telepítése',
+        'cookies': 'Nem használunk sütiket',
+        'install_p': 'A telepítéshez bökj a böngésző <strong>Megosztás</strong> ikonjára, majd válaszd a <strong>Hozzáadás a kezdőképernyőhöz</strong> lehetőséget.',
+        'close': 'Bezárás',
+        'loading': 'BETÖLTÉS...',
+        'dev': 'fejlesztette: Pálvölgyi Ádám',
+        'open_ar': 'Megnyitás AR-ben',
+        'loading_ar': 'AR betöltése...',
+        'error_loading': 'Hiba a betöltéskor',
+        'alt_ar': 'Alternatív AR',
+        'instr_1': '1. Vizsgáld a falat a kamerával, amíg a modell meg nem jelenik.<br>2. Húzd a modellt a poszterre, hogy illeszkedjen.',
+        'qr_desktop': 'Megtekintés AR-ben',
+        'project': 'Projekt'
+      }
+    };
+
+    let currentLang = localStorage.getItem('appLang');
+    if (!currentLang) {
+      currentLang = navigator.language.toLowerCase().startsWith('hu') ? 'hu' : 'en';
+    }
+
+    const viewer = document.getElementById('exhibition-viewer');
+    const projectList = document.getElementById('project-list');
+    const arButton = document.getElementById('ar-button');
+    const altArButton = document.getElementById('alt-ar-button');
+    const desktopQrImage = document.getElementById('desktop-qr-image');
+    const loadingOverlay = document.getElementById('loading-overlay');
+
+    // Menu DOM Elements
+    const langBtn = document.getElementById('lang-btn');
+    const menuBtn = document.getElementById('menu-btn');
+    const menuPopup = document.getElementById('menu-popup');
+    const installBtn = document.getElementById('install-btn');
+    const copyLinkBtn = document.getElementById('copy-link-btn');
+    const menuQrBtn = document.getElementById('menu-qr-btn');
+    const menuQrImage = document.getElementById('menu-qr-image');
+    const shareBtn = document.getElementById('share-btn');
+
+    function refreshLanguage() {
+      langBtn.innerText = currentLang === 'en' ? 'HU' : 'EN';
+      copyLinkBtn.innerText = langDict[currentLang].copy_link;
+
+      if (menuQrImage.style.display === 'block') {
+        menuQrBtn.innerText = langDict[currentLang].hide_qr;
+      } else {
+        menuQrBtn.innerText = langDict[currentLang].show_qr;
+      }
+
+      shareBtn.innerText = langDict[currentLang].share;
+      installBtn.innerText = langDict[currentLang].install;
+      document.querySelector('.cookie-statement').innerText = langDict[currentLang].cookies;
+      document.querySelector('#custom-install-popup p').innerHTML = langDict[currentLang].install_p;
+      document.getElementById('close-install-popup').innerText = langDict[currentLang].close;
+      document.querySelector('.loading-text').innerText = langDict[currentLang].loading;
+
+      const vText = document.getElementById('version-display').innerText.split(' | ')[0];
+      document.getElementById('version-display').innerText = `${vText} | ${langDict[currentLang].dev}`;
+
+      if (!arButton.classList.contains('loading') && arButton.innerText !== langDict['en'].error_loading && arButton.innerText !== langDict['hu'].error_loading) {
+        arButton.innerText = langDict[currentLang].open_ar;
+      } else if (arButton.classList.contains('loading')) {
+        arButton.innerText = langDict[currentLang].loading_ar;
+      } else {
+        arButton.innerText = langDict[currentLang].error_loading;
+      }
+
+      altArButton.innerText = langDict[currentLang].alt_ar;
+      document.querySelector('#desktop-qr-container p').innerText = langDict[currentLang].qr_desktop;
+
+      const pBtns = document.querySelectorAll('.project-btn');
+      pBtns.forEach((btn, idx) => {
+        const defaultTitle = `Project ${idx + 1}`;
+        if (projectNames[idx] === defaultTitle) {
+          btn.innerText = `${langDict[currentLang].project} ${idx + 1}`;
+        } else {
+          btn.innerText = projectNames[idx];
+        }
+      });
+    }
+
+    langBtn.addEventListener('click', () => {
+      currentLang = currentLang === 'en' ? 'hu' : 'en';
+      localStorage.setItem('appLang', currentLang);
+      refreshLanguage();
+    });
+
+    let currentBlobUrl = null;
+
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isChromeIOS = isIOS && /CriOS/.test(navigator.userAgent);
+    const isDesktop = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+    viewer.addEventListener('load', () => {
+      loadingOverlay.style.display = 'none';
+    });
+
+    // Read URL Parameters for Deep Linking
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialProject = parseInt(urlParams.get('p')) || 1;
+
+    // PWA Install Logic
+    const customInstallPopup = document.getElementById('custom-install-popup');
+    const closeInstallPopupBtn = document.getElementById('close-install-popup');
+
+    installBtn.addEventListener('click', () => {
+      menuPopup.style.display = 'none';
+      customInstallPopup.style.display = 'block';
+    });
+
+    closeInstallPopupBtn.addEventListener('click', () => {
+      customInstallPopup.style.display = 'none';
+    });
+
+    // Toggle Hamburger Menu
+    menuBtn.addEventListener('click', () => {
+      menuPopup.style.display = (menuPopup.style.display === 'block') ? 'none' : 'block';
+
+      const tutorialGif = document.getElementById('install-tutorial-gif');
+      if (!tutorialGif.getAttribute('src')) {
+        tutorialGif.setAttribute('src', 'webapp.gif');
+      }
+    });
+
+    // Copy Link Logic
+    copyLinkBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        copyLinkBtn.innerText = langDict[currentLang].link_copied;
+        setTimeout(() => copyLinkBtn.innerText = langDict[currentLang].copy_link, 2000);
+      } catch (err) {
+        console.error('Failed to copy: ', err);
+      }
+    });
+
+    // Mobile Menu QR Toggle
+    menuQrBtn.addEventListener('click', () => {
+      if (menuQrImage.style.display === 'block') {
+        menuQrImage.style.display = 'none';
+        menuQrBtn.innerText = langDict[currentLang].show_qr;
+      } else {
+        const currentUrl = encodeURIComponent(window.location.href);
+        menuQrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${currentUrl}`;
+        menuQrImage.style.display = 'block';
+        menuQrBtn.innerText = langDict[currentLang].hide_qr;
+      }
+    });
+
+    // Native Share API Logic
+    shareBtn.addEventListener('click', async () => {
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: 'AI_X AR Exhibition',
+            url: window.location.href
+          });
+        } catch (err) {
+          console.error('Error sharing:', err);
+        }
+      } else {
+        alert("Native sharing is not supported on this browser. Please use Copy Link.");
+      }
+    });
+
+    // Asynchronous loading function
+    async function loadProject(index) {
+      history.replaceState(null, '', '?p=' + index);
+
+      // Update Desktop QR Code payload automatically (Reduced API request size to 150x150)
+      if (isDesktop) {
+        const currentUrl = encodeURIComponent(window.location.href);
+        desktopQrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${currentUrl}`;
+      }
+
+      if (menuQrImage.style.display === 'block') {
+        const currentUrl = encodeURIComponent(window.location.href);
+        menuQrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${currentUrl}`;
+      }
+
+      loadingOverlay.style.display = 'block';
+      viewer.setAttribute('src', `models/project${index}.glb`);
+
+      if (isIOS) {
+        try {
+          arButton.classList.add('loading');
+          arButton.innerText = langDict[currentLang].loading_ar;
+
+          if (isChromeIOS) {
+            const headResponse = await fetch(`models/project${index}.reality`, { method: 'HEAD' });
+            if (!headResponse.ok) throw new Error('File not found');
+            viewer.setAttribute('ios-src', `models/project${index}.reality`);
+          } else {
+            const response = await fetch(`models/project${index}.reality`);
+            if (!response.ok) throw new Error('File not found');
+
+            const rawBinary = await response.arrayBuffer();
+            const forgedBlob = new Blob([rawBinary], { type: 'model/vnd.reality' });
+
+            if (currentBlobUrl) {
+              URL.revokeObjectURL(currentBlobUrl);
+            }
+
+            currentBlobUrl = URL.createObjectURL(forgedBlob);
+            viewer.setAttribute('ios-src', currentBlobUrl);
+          }
+        } catch (error) {
+          console.warn(`No .reality file found for project${index}, falling back to auto-generated USDZ.`);
+          viewer.removeAttribute('ios-src');
+        } finally {
+          arButton.classList.remove('loading');
+          arButton.innerText = langDict[currentLang].open_ar;
+        }
+      }
+    }
+
+    // Build the dynamic project menu
+    projectNames.forEach((name, idx) => {
+      const i = idx + 1;
+      const btn = document.createElement('button');
+      btn.className = 'project-btn';
+      btn.innerText = name;
+
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.project-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        loadProject(i);
+      });
+
+      projectList.appendChild(btn);
+    });
+
+    const targetBtn = projectList.children[initialProject - 1];
+    if (targetBtn) targetBtn.classList.add('active');
+
+    refreshLanguage();
+
+    loadProject(initialProject);
+
+    // Navigate to fallback WebAR
+    altArButton.addEventListener('click', () => {
+      const currentParams = new URLSearchParams(window.location.search);
+      const activeProject = currentParams.get('p') || 1;
+      window.location.href = `fallback.html?p=${activeProject}`;
+    });
+  </script>
+</body>
+
+</html>
