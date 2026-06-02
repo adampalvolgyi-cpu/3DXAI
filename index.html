@@ -36,6 +36,7 @@
   Version: 1.33 - Renamed the legacy version button label to 'Vázlatterv'.
   Version: 1.34 - Set English label for Vázlatterv button to 'Midterm plan'.
   Version: 1.35 - Updated version display to v1.35. Added localized centered top header phase title 'Féléves terv' / 'Final plan' with mobile scaling support.
+  Version: 1.36 - Updated version display to v1.36. Added inline comments indicating project numbers to the projectNames array.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -532,7 +533,7 @@
       <div class="loading-text">LOADING...</div>
     </div>
 
-    <div id="version-display">v1.35 | developed by Ádám Pálvölgyi</div>
+    <div id="version-display">v1.36 | developed by Ádám Pálvölgyi</div>
 
     <button slot="ar-button" id="ar-button">Open in AR</button>
     <button id="alt-ar-button">Alternate AR</button>
@@ -553,28 +554,28 @@
     // Define the custom names of the projects here. 
     // If you rename them from "Project X", the custom name will replace the default EN/HU numbering.
     const projectNames = [
-      "Badar Borbála/Erőy Zsófia",
-      "Borissza Gergely/Hornok Brigitta",
-      "Dóró Elizabet/Kliszek Viktória",
-      "Jakab Dalma/Tóth Anna",
-      "Putovits Zsolt/Fejes Alex",
-      "Czipa Borbála/Csiszár Hanna",
-      "Reich Fanni/Mészáros Benjamin",
-      "Farkas Zsuzsa/Kúti Dorottya",
-      "PiringerChristopher/GyőriLevente",
-      "Papp Violetta/Tóth Zsófia",
-      "Mikló Dávid/Kis Flóra",
-      "Baross Kincső/Piti Mira",
-      "Takács Dóra/Tuli Kristóf",
-      "Nagy Veronika/Rákóczi Fanni/Méng Vanda",
-      "Bogdán Lilla/Jakab Sára",
-      "Mosolics Réka/Rajnai Júlia",
-      "Kapczár Botond/Söllei Virág/Zsidró Zsolt",
-      "Orosz Máté/Czunyi Ádám",
-      "Wendler Anna/Szelp Anikó",
-      "Podmanczky Réka/Ruszinkó Dominika",
-      "Kovács Dóra/Horváth Lili",
-      "Lovas Bálint/Fekete Szilárd"
+      "Badar Borbála/Erőy Zsófia", // Project 1
+      "Borissza Gergely/Hornok Brigitta", // Project 2
+      "Dóró Elizabet/Kliszek Viktória", // Project 3
+      "Jakab Dalma/Tóth Anna", // Project 4
+      "Putovits Zsolt/Fejes Alex", // Project 5
+      "Czipa Borbála/Csiszár Hanna", // Project 6
+      "Reich Fanni/Mészáros Benjamin", // Project 7
+      "Farkas Zsuzsa/Kúti Dorottya", // Project 8
+      "PiringerChristopher/GyőriLevente", // Project 9
+      "Papp Violetta/Tóth Zsófia", // Project 10
+      "Mikló Dávid/Kis Flóra", // Project 11
+      "Baross Kincső/Piti Mira", // Project 12
+      "Takács Dóra/Tuli Kristóf", // Project 13
+      "Nagy Veronika/Rákóczi Fanni/Méng Vanda", // Project 14
+      "Bogdán Lilla/Jakab Sára", // Project 15
+      "Mosolics Réka/Rajnai Júlia", // Project 16
+      "Kapczár Botond/Söllei Virág/Zsidró Zsolt", // Project 17
+      "Orosz Máté/Czunyi Ádám", // Project 18
+      "Wendler Anna/Szelp Anikó", // Project 19
+      "Podmanczky Réka/Ruszinkó Dominika", // Project 20
+      "Kovács Dóra/Horváth Lili", // Project 21
+      "Lovas Bálint/Fekete Szilárd" // Project 22
     ];
 
     const langDict = {
