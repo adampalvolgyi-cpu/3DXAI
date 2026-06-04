@@ -37,6 +37,7 @@
   Version: 1.34 - Set English label for Vázlatterv button to 'Midterm plan'.
   Version: 1.35 - Updated version display to v1.35. Added localized centered top header phase title 'Féléves terv' / 'Final plan' with mobile scaling support.
   Version: 1.36 - Updated version display to v1.36. Added inline comments indicating project numbers to the projectNames array.
+  Version: 1.37 - Enabled model scaling in AR and 3D viewer by changing ar-scale to auto.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -526,14 +527,14 @@
     <button class="close-btn" id="close-install-popup">Close</button>
   </div>
 
-  <model-viewer id="exhibition-viewer" bounds="tight" ar ar-placement="floor" ar-scale="fixed" camera-controls
+  <model-viewer id="exhibition-viewer" bounds="tight" ar ar-placement="floor" ar-scale="auto" camera-controls
     alt="Digital Art 3D Model">
 
     <div id="loading-overlay">
       <div class="loading-text">LOADING...</div>
     </div>
 
-    <div id="version-display">v1.36 | developed by Ádám Pálvölgyi</div>
+    <div id="version-display">v1.37 | developed by Ádám Pálvölgyi</div>
 
     <button slot="ar-button" id="ar-button">Open in AR</button>
     <button id="alt-ar-button">Alternate AR</button>
